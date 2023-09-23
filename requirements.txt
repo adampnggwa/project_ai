@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+tortoise-orm
+aerich
+httpx
+pydantic-settings
+google_auth_oauthlib
+aiomysql
+openai
+python-multipart
