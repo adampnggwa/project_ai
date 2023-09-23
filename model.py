@@ -6,11 +6,13 @@ class User(Model):
     email = fields.CharField(max_length=100, unique=True)
     token = fields.CharField(max_length=500, null=True)
     token_expiration = fields.DatetimeField(null=True)
-    password = fields.CharField(max_length=564,null=True)
+    password = fields.CharField(max_length=564, null=True)
     image_count = fields.IntField(default=0)
     edit_image_count = fields.IntField(default=0)
+    variation_image_count = fields.IntField(default=0)
     generated_images = fields.ReverseRelation["GeneratedImage"]
     edited_images = fields.ReverseRelation["EditedImage"]
+    variation_images = fields.ReverseRelation["VariationImage"]
 
     class Meta:
         table = "users"
@@ -44,3 +46,17 @@ class EditedImage(Model):
 
     def __str__(self):
         return self.id_image
+    
+class VariationImage(Model):
+    image_id = fields.IntField(pk=True)
+    user = fields.ForeignKeyField('models.User', related_name='variation_images')
+    image_url = fields.CharField(max_length=500)
+    variation_image_url = fields.CharField(max_length=500)
+    prompt = fields.TextField()
+    created_at = fields.DatetimeField(auto_now_add=True)
+
+    class Meta:
+        table = "variation_images"
+
+    def __str__(self):
+        return self.image_id

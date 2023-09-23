@@ -9,3 +9,8 @@ class EditImageRequest(BaseModel):
     prompt: str
     image_url: str
     token: str  
+
+class VariationImageRequest(BaseModel):
+    prompt: str  
+    image_url: str  
+    token: str  
