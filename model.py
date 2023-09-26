@@ -1,5 +1,6 @@
 from tortoise import fields
 from tortoise.models import Model
+from tortoise.fields import DatetimeField
 
 class User(Model):
     user_id = fields.IntField(pk=True)
@@ -8,11 +9,8 @@ class User(Model):
     token_expiration = fields.DatetimeField(null=True)
     password = fields.CharField(max_length=564, null=True)
     image_count = fields.IntField(default=0)
-    edit_image_count = fields.IntField(default=0)
-    variation_image_count = fields.IntField(default=0)
+    last_image_generated_at = fields.DatetimeField(null=True)
     generated_images = fields.ReverseRelation["GeneratedImage"]
-    edited_images = fields.ReverseRelation["EditedImage"]
-    variation_images = fields.ReverseRelation["VariationImage"]
 
     class Meta:
         table = "users"
@@ -25,38 +23,10 @@ class GeneratedImage(Model):
     user = fields.ForeignKeyField('models.User', related_name='generated_images')
     image_url = fields.CharField(max_length=500)  
     prompt = fields.TextField()  
-    created_at = fields.DatetimeField(auto_now_add=True)
+    created_at = DatetimeField(auto_now_add=True)
 
     class Meta:
         table = "generated_images"
 
     def __str__(self):
         return self.id
-    
-class EditedImage(Model):
-    id_image = fields.IntField(pk=True)
-    user = fields.ForeignKeyField('models.User', related_name='edited_images')
-    image_url = fields.CharField(max_length=500)  
-    edited_image_url = fields.CharField(max_length=500)  
-    prompt = fields.TextField()  
-    created_at = fields.DatetimeField(auto_now_add=True)
-
-    class Meta:
-        table = "edited_images"
-
-    def __str__(self):
-        return self.id_image
-    
-class VariationImage(Model):
-    image_id = fields.IntField(pk=True)
-    user = fields.ForeignKeyField('models.User', related_name='variation_images')
-    image_url = fields.CharField(max_length=500)
-    variation_image_url = fields.CharField(max_length=500)
-    prompt = fields.TextField()
-    created_at = fields.DatetimeField(auto_now_add=True)
-
-    class Meta:
-        table = "variation_images"
-
-    def __str__(self):
-        return self.image_id

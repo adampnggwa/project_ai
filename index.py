@@ -1,10 +1,11 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse, RedirectResponse
-from body import ImageRequest, EditImageRequest, VariationImageRequest
+from body import ImageRequest
 from tortoise.exceptions import IntegrityError
 from database import init_db
 from configs import config
-from model import User, GeneratedImage, EditedImage, VariationImage
+from model import User, GeneratedImage
+from datetime import datetime, timedelta
 from helper import (
     credentials_to_dict, 
     user_response, 
@@ -18,6 +19,7 @@ import openai
 import requests
 import secrets
 import hashlib
+import pytz
 
 app = FastAPI()
 
@@ -42,35 +44,6 @@ def generate_image(prompt, size="1024x1024"):
         "image_url": image_url
     }
     return response_data
-
-def edit_image(prompt, image_url):
-    openai.api_key = config.api_key_openai
-    response = openai.Image.create(prompt=prompt, n=1, image_url=image_url)
-    edited_image_url = response['data'][0]['url']
-    return {
-        "status": "success",
-        "code": 201,
-        "message": "Image edited successfully",
-        "edited_image_url": edited_image_url
-    }
-
-def create_variations_of_existing_image(prompt, image_url):
-    openai.api_key = config.api_key_openai
-    response = openai.Image.create(prompt=prompt, n=1, image_url=image_url)
-    variation_image_url = response['data'][0]['url']
-    return {
-        "status": "success",
-        "code": 201,
-        "message": "Variations of existing image created successfully",
-        "variation_image_url": variation_image_url
-    }
-
-def is_valid_image_url(image_url: str) -> bool:
-    try:
-        response = requests.head(image_url)
-        return response.status_code == 200
-    except Exception as e:
-        return False
 
 async def increment_image_count(token: str):
     try:
@@ -222,48 +195,22 @@ async def generate_image_endpoint(image_request: ImageRequest):
     if not await is_token_valid(token):
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     user = await User.get(token=token)
+    now_utc = datetime.now(pytz.utc)
+    if (
+        user.last_image_generated_at
+        and now_utc - user.last_image_generated_at >= timedelta(hours=1)
+    ):
+        user.image_count = 0
     if user.image_count >= 5:
-        raise HTTPException(status_code=400, detail="You have reached the maximum limit of generated images for this hour")
+        raise HTTPException(status_code=400, detail="You have reached the maximum limit of images generated for this hour, please try again after 1 hour")
     prompt = image_request.prompt
     size = image_request.size
     response_data = generate_image(prompt, size)
-    await GeneratedImage.create(user=user, image_url=response_data["image_url"], prompt=prompt)
+    now_local = now_utc.astimezone(pytz.timezone('Asia/Jakarta'))
+    user.last_image_generated_at = now_local 
+    generated_image = await GeneratedImage.create(user=user, image_url=response_data["image_url"], prompt=prompt)
+    generated_image.created_at = now_local
+    await generated_image.save()
     user.image_count += 1
     await user.save()
-    return response_data 
-
-@app.post("/edit-image/")
-async def edit_image_endpoint(edit_image_request: EditImageRequest):
-    token = edit_image_request.token
-    if not await is_token_valid(token):
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    user = await User.get(token=token)
-    if user.edit_image_count >= 5:
-        raise HTTPException(status_code=400, detail="You have reached the maximum limit of edited images for this hour")
-    prompt = edit_image_request.prompt
-    image_url = edit_image_request.image_url
-    if not is_valid_image_url(image_url):
-        raise HTTPException(status_code=400, detail="Invalid image URL")
-    response_data = edit_image(prompt, image_url)
-    await EditedImage.create(user=user, image_url=image_url, edited_image_url=response_data["edited_image_url"], prompt=prompt)
-    user.edit_image_count += 1
-    await user.save()
     return response_data
-
-@app.post("/create-variations/")
-async def create_variations_endpoint(variations_request: VariationImageRequest):
-    token = variations_request.token
-    if not await is_token_valid(token):
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    user = await User.get(token=token)
-    if user.variation_image_count >= 5:
-        raise HTTPException(status_code=400, detail="You have reached the maximum limit of variation images for this hour")
-    prompt = variations_request.prompt
-    image_url = variations_request.image_url
-    if not is_valid_image_url(image_url):
-        raise HTTPException(status_code=400, detail="Invalid image URL")
-    response_data = create_variations_of_existing_image(prompt, image_url)
-    await VariationImage.create(user=user, image_url=image_url, variation_image_url=response_data["variation_image_url"], prompt=prompt)
-    user.variation_image_count += 1
-    await user.save()
-    return response_data 
