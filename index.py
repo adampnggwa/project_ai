@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse
 from body import ImageRequest
 from tortoise.exceptions import IntegrityError
@@ -6,6 +6,7 @@ from database import init_db
 from configs import config
 from model import User, GeneratedImage
 from datetime import datetime, timedelta
+from PIL import Image
 from helper import (
     credentials_to_dict, 
     user_response, 
@@ -20,6 +21,8 @@ import requests
 import secrets
 import hashlib
 import pytz
+import tempfile
+import shutil
 
 app = FastAPI()
 
@@ -214,3 +217,61 @@ async def generate_image_endpoint(image_request: ImageRequest):
     user.image_count += 1
     await user.save()
     return response_data
+
+@app.post("/edit-image/")
+async def edit_image_endpoint(
+    token: str,
+    prompt: str,
+    image: UploadFile,
+    mask: UploadFile = None,
+    size: str = "1024x1024"
+):
+    if not await is_token_valid(token):
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    try:
+        # Cek apakah mask telah disediakan oleh pengguna
+        if mask:
+            # Save the uploaded mask file to a temporary directory
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as mask_temp:
+                shutil.copyfileobj(mask.file, mask_temp)
+            # Process the mask with PIL
+            with Image.open(mask_temp.name) as mask_pil:
+                # Convert mask to grayscale and save it
+                mask_pil = mask_pil.convert("L")
+                mask_pil.save(mask_temp.name, format="PNG")
+        # Save the uploaded image file to a temporary directory
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as image_temp:
+            shutil.copyfileobj(image.file, image_temp)
+        # Process the image with PIL
+        with Image.open(image_temp.name) as image_pil:
+            if mask:
+                # Ensure the dimensions of the image and mask match
+                if image_pil.size != mask_pil.size:
+                    raise HTTPException(status_code=400, detail="Image and mask dimensions must match")
+            # Send the image and optional mask to DALL·E for editing
+            openai.api_key = config.api_key_openai
+            if mask:
+                response = openai.Image.create_edit(
+                    image=open(image_temp.name, "rb"),
+                    mask=open(mask_temp.name, "rb"),
+                    prompt=prompt,
+                    n=1,
+                    size=size
+                )
+            else:
+                response = openai.Image.create(prompt=prompt, n=1, size=size)
+
+            image_url = response['data'][0]['url']
+
+            response_data = {
+                "status": "success",
+                "code": 201,
+                "message": "image edited successfully",
+                "image_url": image_url
+            }
+        return response_data
+    finally:
+        # Clean up temporary files
+        os.remove(image_temp.name)
+        if mask:
+            os.remove(mask_temp.name)

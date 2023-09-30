@@ -10,3 +10,4 @@ openai
 python-multipart
 python-dotenv
 pytz
+pillow
