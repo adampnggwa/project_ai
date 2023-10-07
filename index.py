@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse
 from body import ImageRequest
+from fastapi.middleware.cors import CORSMiddleware
 from tortoise.exceptions import IntegrityError
 from database import init_db
 from configs import config
@@ -32,6 +33,19 @@ os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
 @app.on_event("startup")
 async def startup_event():
     init_db(app)
+
+origins = [
+    "http://localhost:3000/",
+    "http://localhost:3000/",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["POST", "GET", "OPTIONS"],
+    allow_headers=["*"],
+)
 
 def hash_password(password: str, salt: str) -> str:
     return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 100000).hex()
