@@ -8,6 +8,7 @@ from configs import config
 from model import User, GeneratedImage
 from datetime import datetime, timedelta
 from PIL import Image
+from io import BytesIO
 from helper import (
     credentials_to_dict, 
     user_response, 
@@ -289,3 +290,49 @@ async def edit_image_endpoint(
         os.remove(image_temp.name)
         if mask:
             os.remove(mask_temp.name)
+
+@app.post("/generate-variation/")
+async def generate_variation(
+    token: str,
+    image: UploadFile,
+    size: str = "1024x1024"
+):
+    if not await is_token_valid(token):
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    try:
+        # Save the uploaded image file to a temporary directory
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as image_temp:
+            shutil.copyfileobj(image.file, image_temp)
+
+        # Process the image with PIL
+        with Image.open(image_temp.name) as image_pil:
+            # Convert the image to a BytesIO object
+            byte_stream = BytesIO()
+            image_pil.save(byte_stream, format='PNG')
+            byte_array = byte_stream.getvalue()
+
+        # Send the image to DALL·E for generating a variation
+        openai.api_key = config.api_key_openai
+        response = openai.Image.create_variation(
+            image=byte_array,
+            n=1,
+            size=size
+        )
+
+        image_url = response['data'][0]['url']
+
+        response_data = {
+            "status": "success",
+            "code": 201,
+            "message": "image variation created successfully",
+            "image_url": image_url
+        }
+
+        return response_data
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        # Clean up temporary files
+        os.remove(image_temp.name)
