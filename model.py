@@ -10,7 +10,13 @@ class User(Model):
     password = fields.CharField(max_length=564, null=True)
     image_count = fields.IntField(default=0)
     last_image_generated_at = fields.DatetimeField(null=True)
+    edit_image_count = fields.IntField(default=0)
+    last_edit_image_generated_at = fields.DatetimeField(null=True)
+    variation_image_count = fields.IntField(default=0)
+    last_variation_image_generated_at = fields.DatetimeField(null=True)
     generated_images = fields.ReverseRelation["GeneratedImage"]
+    edited_images = fields.ReverseRelation["EditedImage"]
+    generated_variations = fields.ReverseRelation["GeneratedVariation"]
 
     class Meta:
         table = "users"
@@ -27,6 +33,31 @@ class GeneratedImage(Model):
 
     class Meta:
         table = "generated_images"
+
+    def __str__(self):
+        return self.id
+
+class EditedImage(Model):
+    id = fields.IntField(pk=True)
+    user = fields.ForeignKeyField('models.User', related_name='edited_images')
+    image_url = fields.CharField(max_length=500)  
+    prompt = fields.TextField()  
+    created_at = DatetimeField(auto_now_add=True)
+
+    class Meta:
+        table = "edited_images"
+
+    def __str__(self):
+        return self.id
+    
+class GeneratedVariation(Model):
+    id = fields.IntField(pk=True)
+    user = fields.ForeignKeyField('models.User', related_name='generated_variations')
+    image_url = fields.CharField(max_length=500)    
+    created_at = DatetimeField(auto_now_add=True)
+
+    class Meta:
+        table = "generated_variations"
 
     def __str__(self):
         return self.id

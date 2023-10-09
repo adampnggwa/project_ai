@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from tortoise.exceptions import IntegrityError
 from database import init_db
 from configs import config
-from model import User, GeneratedImage
+from model import User, GeneratedImage, EditedImage, GeneratedVariation
 from datetime import datetime, timedelta
 from PIL import Image
 from io import BytesIO
@@ -111,14 +111,6 @@ def generate_variation(token, image_temp, size="1024x1024"):
         return response_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-async def increment_image_count(token: str):
-    try:
-        user = await User.get(token=token)
-        user.image_count += 1  
-        await user.save()
-    except User.DoesNotExist:
-        pass
 
 async def is_token_valid(token: str) -> bool:
     user = await User.get_or_none(token=token)
@@ -292,6 +284,15 @@ async def edit_image_endpoint(
 ):
     if not await is_token_valid(token):
         raise HTTPException(status_code=401, detail="Invalid or expired token")
+    user = await User.get(token=token) 
+    now_utc = datetime.now(pytz.utc)
+    if (
+        user.last_edit_image_generated_at
+        and now_utc - user.last_edit_image_generated_at >= timedelta(hours=1)
+    ):
+        user.edit_image_count = 0
+    if user.edit_image_count >= 5:
+        raise HTTPException(status_code=400, detail="You have reached the maximum limit of edited images for this hour, please try again after 1 hour")
     image_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
     mask_temp = None
     try:
@@ -305,6 +306,13 @@ async def edit_image_endpoint(
                 mask_pil = mask_pil.resize((1024, 1024))
                 mask_pil.save(mask_temp.name, format="PNG")
         response_data = edit_image(token, prompt, image_temp, mask_temp, size)
+        now_local = now_utc.astimezone(pytz.timezone('Asia/Jakarta'))
+        user.last_edit_image_generated_at = now_local
+        edited_images = await EditedImage.create(user=user, image_url=response_data["image_url"], prompt=prompt)
+        edited_images.created_at = now_local
+        await edited_images.save()
+        user.edit_image_count += 1
+        await user.save()
         return response_data
     finally:
         os.remove(image_temp.name)
@@ -320,11 +328,27 @@ async def generate_variation_endpoint(
 ):
     if not await is_token_valid(token):
         raise HTTPException(status_code=401, detail="Invalid or expired token")
+    user = await User.get(token=token) 
+    now_utc = datetime.now(pytz.utc)
+    if (
+        user.last_variation_image_generated_at
+        and now_utc - user.last_variation_image_generated_at >= timedelta(hours=1)
+    ):
+        user.variation_image_count = 0
+    if user.variation_image_count >= 5:
+        raise HTTPException(status_code=400, detail="You have reached the maximum limit of variations images for this hour, please try again after 1 hour")
     image_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as image_temp:
             shutil.copyfileobj(image.file, image_temp)
         response_data = generate_variation(token, image_temp, size)
+        now_local = now_utc.astimezone(pytz.timezone('Asia/Jakarta'))
+        user.last_variation_image_generated_at = now_local
+        generated_variations = await GeneratedVariation.create(user=user, image_url=response_data["image_url"])
+        generated_variations.created_at = now_local
+        await generated_variations.save()
+        user.variation_image_count += 1
+        await user.save()
         return response_data
     finally:
         os.remove(image_temp.name)
