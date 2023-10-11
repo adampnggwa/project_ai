@@ -36,8 +36,7 @@ async def startup_event():
     init_db(app)
 
 origins = [
-    "http://localhost:3000/",
-    "http://localhost:3000/",
+    "http://localhost:3000",
 ]
 
 app.add_middleware(
