@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Request, HTTPException, UploadFile, Header
 from fastapi.responses import JSONResponse
-from datetime import timedelta
+from datetime import timedelta, datetime
 from PIL import Image
 import pytz
-import datetime
 import os
 import tempfile
 import shutil
@@ -42,7 +41,7 @@ async def generate(meta: ImageRequest, token: str= Header(...)):
     return JSONResponse (content=response_data, status_code=201)
 
 @router.post('/edit-image')
-async def edit(prompt: str, image: UploadFile, mask:UploadFile | None = None, token: str = Header(...)):
+async def edit(prompt: str, image: UploadFile, mask: UploadFile = None, token: str = Header(...)):
     size: str = "1024x1024"
     validasi = await is_token_valid(token=token)
     if validasi is False:
