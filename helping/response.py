@@ -9,10 +9,10 @@ def user_response(user):
     }
     return response
 
-def pesan_response(email: Optional[str], pesan: str):
+def pesan_response(email: Optional[str], message: str):
     if email is None:
         email = 'anonymus'
     return{
         'email': email,
-        'pesan': pesan
+        'message': message
     }

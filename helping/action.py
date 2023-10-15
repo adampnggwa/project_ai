@@ -2,23 +2,6 @@ from PIL import Image
 from io import BytesIO
 import openai
 
-def generate_variation(image_temp, size="1024x1024"):
-    with Image.open(image_temp.name) as image_pil:
-        byte_stream = BytesIO()
-        image_pil.save(byte_stream, format='PNG')
-        byte_array = byte_stream.getvalue()
-    response = openai.Image.create_variation(
-        image=byte_array,
-        n=1,
-        size=size
-    )
-    image_url = response['data'][0]['url']
-    response_data = {
-        "message": "image variation created successfully",
-        "image_url": image_url
-    }
-    return response_data
-
 def generate_image(prompt, size="1024x1024"):
     response = openai.Image.create(prompt=prompt, n=1, size=size)
     image_url = response['data'][0]['url']
@@ -50,3 +33,20 @@ def edit_image(prompt, image_temp, mask_temp, size="1024x1024"):
             "image_url": image_url
         }
         return response_data
+    
+def generate_variation(image_temp, size="1024x1024"):
+    with Image.open(image_temp.name) as image_pil:
+        byte_stream = BytesIO()
+        image_pil.save(byte_stream, format='PNG')
+        byte_array = byte_stream.getvalue()
+    response = openai.Image.create_variation(
+        image=byte_array,
+        n=1,
+        size=size
+    )
+    image_url = response['data'][0]['url']
+    response_data = {
+        "message": "image variation created successfully",
+        "image_url": image_url
+    }
+    return response_data

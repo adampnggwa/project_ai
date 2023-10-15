@@ -1,10 +1,11 @@
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import JSONResponse
-import secrets
-from database.model import User
-from body.auth import signupORsignin
+from email_validator import validate_email, EmailNotValidError
 from helping.response import user_response, pesan_response
-from helping.auth import credentials_to_dict, create_token, check_token_expired, hash_password
+from helping.auth import create_token, hash_password
+from fastapi.responses import JSONResponse
+from body.auth import signupORsignin
+from database.model import User
+import secrets
 
 router = APIRouter(prefix='/auth-local', tags=['auth-local'])
 
@@ -12,25 +13,28 @@ router = APIRouter(prefix='/auth-local', tags=['auth-local'])
 async def signup(meta: signupORsignin):
     user_exists = await User.exists(email=meta.email)
     if user_exists:
-        response = pesan_response(email=meta.email, pesan='email ini sudah mendaftar')
-        return JSONResponse (response, status_code=403)
+        raise HTTPException(status_code=403, detail="This email is already registered")
+    try:
+        valid = validate_email(meta.email)
+        email = valid["email"]
+    except EmailNotValidError as e:
+        raise HTTPException(status_code=400, detail="Invalid email format")
     salt = secrets.token_hex(16)
     hashed_password = hash_password(meta.password, salt)
-    await User.create(email=meta.email, password=hashed_password + salt)
-    response = pesan_response(email=meta.email, pesan='email berhasil didaftarkan')
-    return JSONResponse (response, status_code=201)
+    await User.create(email=email, password=hashed_password + salt)
+    response = pesan_response(email=email, message='Email successfully registered')
+    return JSONResponse(response, status_code=201)
 
 @router.post('/signin')
 async def signin(meta: signupORsignin):
-    user = await User.get(email=meta.email)
+    user = await User.get_or_none(email=meta.email)
     if user is None:
-        response = pesan_response(email=meta.email, pesan='email anda masih belum terdaftar')
-        return JSONResponse (response, status_code=403)
-    salt = user.password[-32:]
-    hashed_input_password = hash_password(meta.password, salt)
-    if user.password[:-32] != hashed_input_password:
-        response = pesan_response(pesan='email atau password anda tidak valid')
-        return JSONResponse(response, status_code=401)
-    await create_token(user)
-    response = user_response(user=user)
-    return JSONResponse (response, status_code=200)
+        raise HTTPException(status_code=403, detail="Your email is not yet registered")
+    else:
+        salt = user.password[-32:]
+        hashed_input_password = hash_password(meta.password, salt)
+        if user.password[:-32] != hashed_input_password:
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+        await create_token(user)
+        response = user_response(user)
+        return JSONResponse(response, status_code=200)

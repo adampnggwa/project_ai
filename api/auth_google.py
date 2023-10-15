@@ -1,11 +1,11 @@
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse, JSONResponse
-import google_auth_oauthlib.flow
-import requests
 from helping.auth import credentials_to_dict, create_token
 from helping.response import user_response
+import google_auth_oauthlib.flow
 from database.model import User
 from configs import config
+import requests
 import os
 
 router = APIRouter(prefix='/google-auth', tags=['GOOGLE-AUTH'])
