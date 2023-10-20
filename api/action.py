@@ -18,16 +18,9 @@ async def generate(meta: ImageRequest, token: str= Header(...)):
     validasi = await is_token_valid(token=token)
     if validasi is False:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
-    
     user = await User.get(token=token)
     now_utc = datetime.now(pytz.utc)
-    if (
-        user.last_image_generated_at
-        and now_utc - user.last_image_generated_at >= timedelta(hours=1)
-    ):
-        user.image_count = 0
-    if user.image_count >= 5:
-        raise HTTPException(status_code=400, detail="You have reached the maximum limit of images generated for this hour, please try again after 1 hour")
+    
     prompt = meta.prompt
     size = meta.size
     response_data = generate_image(prompt, size)
@@ -48,13 +41,7 @@ async def edit(prompt: str, image: UploadFile, mask: UploadFile = None, token: s
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     user = await User.get(token=token) 
     now_utc = datetime.now(pytz.utc)
-    if (
-        user.last_edit_image_generated_at
-        and now_utc - user.last_edit_image_generated_at >= timedelta(hours=1)
-    ):
-        user.edit_image_count = 0
-    if user.edit_image_count >= 5:
-        raise HTTPException(status_code=400, detail="You have reached the maximum limit of edited images for this hour, please try again after 1 hour")
+    
     image_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
     mask_temp = None
     try:
@@ -90,13 +77,7 @@ async def variation(image: UploadFile, token: str = Header(...)):
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     user = await User.get(token=token) 
     now_utc = datetime.now(pytz.utc)
-    if (
-        user.last_variation_image_generated_at
-        and now_utc - user.last_variation_image_generated_at >= timedelta(hours=1)
-    ):
-        user.variation_image_count = 0
-    if user.variation_image_count >= 5:
-        raise HTTPException(status_code=400, detail="You have reached the maximum limit of variations images for this hour, please try again after 1 hour")
+    
     image_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as image_temp:
