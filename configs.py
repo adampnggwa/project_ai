@@ -10,5 +10,7 @@ class Config(BaseSettings):
     redirect_uri_register: str = Field(os.environ.get("REDIRECT_URI_REGISTER", "default_value"))
     redirect_uri_login: str = Field(os.environ.get("REDIRECT_URI_LOGIN", "default_value"))
     database_connections: str = Field(os.environ.get("DATABASE_CONNECTIONS", "default_value"))
+    my_email: str = Field(os.environ.get("MY_EMAIL", "default_value"))
+    my_password: str = Field(os.environ.get("MY_PASSWORD", "default_value"))
 
 config = Config()
