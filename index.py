@@ -5,6 +5,7 @@ from configs import config
 import api.action
 import api.auth_google
 import api.auth_local
+import api.user_data
 import openai
 
 app = FastAPI()
@@ -30,3 +31,4 @@ app.add_middleware(
 app.include_router(api.action.router)
 app.include_router(api.auth_google.router)
 app.include_router(api.auth_local.router)
+app.include_router(api.user_data.router)
