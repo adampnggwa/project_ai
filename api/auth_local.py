@@ -4,7 +4,7 @@ from helping.response import user_response, pesan_response
 from helping.auth import create_token, hash_password
 from fastapi.responses import JSONResponse
 from helping.confirm import send_confirm
-from body.auth import signupORsignin
+from body.auth import signupORsignin, VerifyRegistration
 from database.model import User
 import secrets
 
@@ -28,16 +28,22 @@ async def signup(meta: signupORsignin):
     response = pesan_response(email=email, message='Email successfully registered. Please check your email for verification.')
     return JSONResponse(response, status_code=201)
 
-@router.get('/confirm_email')
-async def confirm_email(verification_token: str):
-    user = await User.filter(verification_token=verification_token).first() # Temukan pengguna dengan token verifikasi yang sesuai
+@router.post('/verify-registration')
+async def verify_registration(meta: VerifyRegistration):
+    user = await User.get_or_none(email=meta.email)
     if user is None:
-        raise HTTPException(status_code=404, detail="Verification token not found")
-    user.verification_token = None # Hapus token verifikasi
-    user.verified = True # Setel pengguna sebagai diverifikasi
-    await user.save()
-    response = pesan_response(email=user.email, message='Email confirmed successfully')
-    return JSONResponse(response, status_code=200)
+        raise HTTPException(status_code=403, detail="Your email is not yet registered")
+    if user.verification_token and user.verification_token == meta.verification_token:
+        # Token matches the user, proceed with verification
+        salt = secrets.token_hex(16)
+        hash_password(meta.password, salt)
+        user.verification_token = None  # Clear the verification token
+        await user.save()
+        await create_token(user)  # Create a token for the user
+        response = user_response(user)
+        return JSONResponse(response, status_code=200)
+    else:
+        raise HTTPException(status_code=401, detail="Invalid verification token")
 
 @router.post('/signin')
 async def signin(meta: signupORsignin):
