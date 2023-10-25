@@ -8,4 +8,3 @@ class signupORsignin(BaseModel):
 class VerifyRegistration(BaseModel):
     email: str 
     verification_token: str  
-    password: str  

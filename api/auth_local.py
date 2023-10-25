@@ -20,11 +20,11 @@ async def signup(meta: signupORsignin):
         email = valid["email"]
     except EmailNotValidError as e:
         raise HTTPException(status_code=400, detail="Invalid email format")
-    verification_token = secrets.token_hex(16) # Generate unique verification token
+    verification_token = secrets.token_hex(16) 
     salt = secrets.token_hex(16)
     hashed_password = hash_password(meta.password, salt)
-    await User.create(email=email, password=hashed_password + salt, verification_token=verification_token) # Create user with verification token
-    send_confirm(email, verification_token) # Send verification email
+    await User.create(email=email, password=hashed_password + salt, verification_token=verification_token) 
+    send_confirm(email, verification_token) 
     response = pesan_response(email=email, message='Email successfully registered. Please check your email for verification.')
     return JSONResponse(response, status_code=201)
 
@@ -34,13 +34,11 @@ async def verify_registration(meta: VerifyRegistration):
     if user is None:
         raise HTTPException(status_code=403, detail="Your email is not yet registered")
     if user.verification_token and user.verification_token == meta.verification_token:
-        # Token matches the user, proceed with verification
-        salt = secrets.token_hex(16)
-        hash_password(meta.password, salt)
-        user.verification_token = None  # Clear the verification token
+        user.verification_token = None  
         await user.save()
-        await create_token(user)  # Create a token for the user
-        response = user_response(user)
+        user.verified = True
+        await user.save()        
+        response = pesan_response(email=meta.email, message="Congratulations, you are now verified. You can proceed with signin.")
         return JSONResponse(response, status_code=200)
     else:
         raise HTTPException(status_code=401, detail="Invalid verification token")
@@ -51,6 +49,8 @@ async def signin(meta: signupORsignin):
     if user is None:
         raise HTTPException(status_code=403, detail="Your email is not yet registered")
     else:
+        if not user.verified:
+            raise HTTPException(status_code=403, detail="User is not verified. Please complete the verification process.")        
         salt = user.password[-32:]
         hashed_input_password = hash_password(meta.password, salt)
         if user.password[:-32] != hashed_input_password:
