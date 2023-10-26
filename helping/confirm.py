@@ -8,7 +8,7 @@ PORT = 587
 MY_EMAIL = config.my_email
 MY_PASSWORD = config.my_password
 
-def send_confirm(target_email: str, verification_token: str):
+def send_confirm(target_email: str, verification_token: str, verification_token_expiration: str):
     msg = MIMEMultipart()
 
     subject = "Confirmation Token for Ai Text to Image Application"
@@ -23,7 +23,8 @@ def send_confirm(target_email: str, verification_token: str):
             <p>Dear User,</p>
             <p>Thank you for choosing Ai Text to Image. Here is your confirmation token:</p>
             <p style="font-size: 18px; background-color: #ddd; padding: 10px;">{verification_token}</p>
-            <p>Please use this token to access our features and verify your identity in the Ai Text to Image app.</p>
+            <p>Please use this token before it expires, to access our features and verify your identity in the Ai Text to Image application.</p>
+            <p>Token Expiration: {verification_token_expiration}</p>
             <p>If you want to continue verification, please click <a href="http://127.0.0.1:8000/docs#/auth-local/verify_registration_auth_local_verify_registration_post">here</a> to continue. Thank you for your support!</p>
             <p style="margin-top: 20px;">Best regards,</p>
             <p>{sender_name}</p>
