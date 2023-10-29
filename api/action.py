@@ -21,13 +21,22 @@ async def generate(meta: ImageRequest, token: str= Header(...)):
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     user = await User.get(token=token)
     if can_use_action(user.user_id, 'generate-image'):
+        if meta.size == 'small':
+            size = '256x256'
+        elif meta.size == 'medium':
+            size = '512x512'
+        elif meta.size == 'large':
+            size = '1024x1024'
+        else:
+            raise HTTPException(status_code=401, detail="Entered the wrong value in the size parameter") 
         now_time = datetime.now(pytz.utc)
         prompt = meta.prompt
-        size = meta.size
         response_data = generate_image(prompt, size)
+        response_data["size"] = f"size: {meta.size} ({size})"
+        combined_size = f"{meta.size} ({size})"
         now_local = now_time.astimezone(pytz.timezone('Asia/Jakarta'))
         user.last_image_generated_at = now_local 
-        generated_image = await GeneratedImage.create(user=user, image_url=response_data["image_url"], prompt=prompt)
+        generated_image = await GeneratedImage.create(user=user, image_url=response_data["image_url"], prompt=prompt, size=combined_size)
         generated_image.created_at = now_local
         await generated_image.save()
         user.image_count += 1

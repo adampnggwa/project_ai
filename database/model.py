@@ -32,6 +32,7 @@ class GeneratedImage(Model):
     user = fields.ForeignKeyField('models.User', related_name='generated_images')
     image_url = fields.CharField(max_length=500)  
     prompt = fields.TextField()  
+    size = fields.CharField(max_length=50)
     created_at = DatetimeField(auto_now_add=True)
 
     class Meta:

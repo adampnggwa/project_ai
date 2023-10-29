@@ -2,7 +2,7 @@ from PIL import Image
 from io import BytesIO
 import openai
 
-def generate_image(prompt, size="1024x1024"):
+def generate_image(prompt, size):
     response = openai.Image.create(prompt=prompt, n=1, size=size)
     image_url = response['data'][0]['url']
     response_data = {
