@@ -3,7 +3,7 @@ from database.model import User, GeneratedImage, EditedImage, GeneratedVariation
 from helping.action import generate_variation, generate_image, edit_image
 from fastapi.responses import JSONResponse
 from datetime import datetime
-from helping.limit import can_use_action
+from helping.limit import can_use_action, reset_user_points
 from helping.auth import is_token_valid
 from body.action import ImageRequest
 from PIL import Image
@@ -20,7 +20,7 @@ async def generate(meta: ImageRequest, token: str= Header(...)):
     if validasi is False:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     user = await User.get(token=token)
-    if can_use_action(user.user_id, 'generate-image'):
+    if reset_user_points(user) or can_use_action(user, 'generate-image', meta.size):
         if meta.size == 'small':
             size = '256x256'
         elif meta.size == 'medium':
@@ -28,21 +28,20 @@ async def generate(meta: ImageRequest, token: str= Header(...)):
         elif meta.size == 'large':
             size = '1024x1024'
         else:
-            raise HTTPException(status_code=401, detail="Entered the wrong value in the size parameter") 
+            raise HTTPException(status_code=400, detail="Entered the wrong value in the size parameter")
         now_time = datetime.now(pytz.utc)
         prompt = meta.prompt
         response_data = generate_image(prompt, size)
         response_data["size"] = f"{meta.size} ({size})"
         combined_size = f"{meta.size} ({size})"
         now_local = now_time.astimezone(pytz.timezone('Asia/Jakarta'))
-       
         generated_image = await GeneratedImage.create(user=user, image_url=response_data["image_url"], prompt=prompt, size=combined_size)
         generated_image.created_at = now_local
         await generated_image.save()
-      
+        await user.save()
         return JSONResponse(content=response_data, status_code=201)
     else:
-        raise HTTPException(status_code=429, detail="Limit exceeded. Please wait for 1 hours, to use it again.")
+        raise HTTPException(status_code=400, detail="Insufficient points. Wait 1 day to get points again.")
 
 @router.post('/edit-image')
 async def edit(prompt: str, image: UploadFile, mask: UploadFile = None, token: str = Header(...)):
@@ -51,7 +50,7 @@ async def edit(prompt: str, image: UploadFile, mask: UploadFile = None, token: s
     if validasi is False:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     user = await User.get(token=token) 
-    if can_use_action(user.user_id, 'edit-image'):
+    if reset_user_points(user) or can_use_action(user, 'edit-image'): 
         now_time = datetime.now(pytz.utc)
         image_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
         mask_temp = None
@@ -67,11 +66,10 @@ async def edit(prompt: str, image: UploadFile, mask: UploadFile = None, token: s
                     mask_pil.save(mask_temp.name, format="PNG")
             response_data = edit_image(prompt, image_temp, mask_temp, size)
             now_local = now_time.astimezone(pytz.timezone('Asia/Jakarta'))
-           
             edited_images = await EditedImage.create(user=user, image_url=response_data["image_url"], prompt=prompt)
             edited_images.created_at = now_local
             await edited_images.save()
-           
+            await user.save()
             return JSONResponse(content=response_data, status_code=200)
         finally:
             os.remove(image_temp.name)
@@ -79,7 +77,7 @@ async def edit(prompt: str, image: UploadFile, mask: UploadFile = None, token: s
                 mask_temp.close()
                 os.remove(mask_temp.name)
     else:
-        raise HTTPException(status_code=429, detail="Limit exceeded. Please wait for 1 hours to use it again.")
+        raise HTTPException(status_code=400, detail="Insufficient points. Wait 1 day to get points again.")
 
 @router.post('/generate-variation')
 async def variation(image: UploadFile, token: str = Header(...)):
@@ -88,7 +86,7 @@ async def variation(image: UploadFile, token: str = Header(...)):
     if validasi is False:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     user = await User.get(token=token) 
-    if can_use_action(user.user_id, 'generate-variation'):
+    if reset_user_points(user) or can_use_action(user, 'generate-variation'):  
         now_time = datetime.now(pytz.utc)
         image_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
         try:
@@ -96,13 +94,12 @@ async def variation(image: UploadFile, token: str = Header(...)):
                 shutil.copyfileobj(image.file, image_temp)
             response_data = generate_variation(image_temp, size)
             now_local = now_time.astimezone(pytz.timezone('Asia/Jakarta'))
-         
             generated_variations = await GeneratedVariation.create(user=user, image_url=response_data["image_url"])
             generated_variations.created_at = now_local
             await generated_variations.save()
-         
+            await user.save()
             return JSONResponse(content=response_data, status_code=201)
         finally:
             os.remove(image_temp.name)
     else:
-        raise HTTPException(status_code=429, detail="Limit exceeded. Please wait for 1 hours to use it again.")
+        raise HTTPException(status_code=400, detail="Insufficient points. Wait 1 day to get points again.")
