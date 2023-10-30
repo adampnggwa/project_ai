@@ -35,12 +35,11 @@ async def generate(meta: ImageRequest, token: str= Header(...)):
         response_data["size"] = f"{meta.size} ({size})"
         combined_size = f"{meta.size} ({size})"
         now_local = now_time.astimezone(pytz.timezone('Asia/Jakarta'))
-        user.last_image_generated_at = now_local 
+       
         generated_image = await GeneratedImage.create(user=user, image_url=response_data["image_url"], prompt=prompt, size=combined_size)
         generated_image.created_at = now_local
         await generated_image.save()
-        user.image_count += 1
-        await user.save()
+      
         return JSONResponse(content=response_data, status_code=201)
     else:
         raise HTTPException(status_code=429, detail="Limit exceeded. Please wait for 1 hours, to use it again.")
@@ -68,12 +67,11 @@ async def edit(prompt: str, image: UploadFile, mask: UploadFile = None, token: s
                     mask_pil.save(mask_temp.name, format="PNG")
             response_data = edit_image(prompt, image_temp, mask_temp, size)
             now_local = now_time.astimezone(pytz.timezone('Asia/Jakarta'))
-            user.last_edit_image_generated_at = now_local
+           
             edited_images = await EditedImage.create(user=user, image_url=response_data["image_url"], prompt=prompt)
             edited_images.created_at = now_local
             await edited_images.save()
-            user.edit_image_count += 1
-            await user.save()
+           
             return JSONResponse(content=response_data, status_code=200)
         finally:
             os.remove(image_temp.name)
@@ -98,12 +96,11 @@ async def variation(image: UploadFile, token: str = Header(...)):
                 shutil.copyfileobj(image.file, image_temp)
             response_data = generate_variation(image_temp, size)
             now_local = now_time.astimezone(pytz.timezone('Asia/Jakarta'))
-            user.last_variation_image_generated_at = now_local
+         
             generated_variations = await GeneratedVariation.create(user=user, image_url=response_data["image_url"])
             generated_variations.created_at = now_local
             await generated_variations.save()
-            user.variation_image_count += 1
-            await user.save()
+         
             return JSONResponse(content=response_data, status_code=201)
         finally:
             os.remove(image_temp.name)
