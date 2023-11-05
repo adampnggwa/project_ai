@@ -6,6 +6,7 @@ def user_response(user):
         "email": user.email,
         "token": str(user.token),
         "token_expiration": str(user.token_expiration),
+        "points": str(user.points),
     }
     return response
 

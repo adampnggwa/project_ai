@@ -6,6 +6,7 @@ import api.action
 import api.auth_google
 import api.auth_local
 import api.user_data
+import api.user_premium
 import openai
 
 app = FastAPI()
@@ -32,3 +33,4 @@ app.include_router(api.action.router)
 app.include_router(api.auth_google.router)
 app.include_router(api.auth_local.router)
 app.include_router(api.user_data.router)
+app.include_router(api.user_premium.router)
