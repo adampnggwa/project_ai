@@ -12,6 +12,8 @@ class User(Model):
     verification_token = fields.CharField(max_length=100, null=True)
     verification_token_expiration = fields.DatetimeField(null=True)
     points = fields.IntField(default=50)
+    premium = fields.BooleanField(default=False)
+    premium_expiration = DatetimeField(null=True)
     generated_images = fields.ReverseRelation["GeneratedImage"]
     edited_images = fields.ReverseRelation["EditedImage"]
     generated_variations = fields.ReverseRelation["GeneratedVariation"]

@@ -8,7 +8,7 @@ def reset_user_points(user):
     now_timestamp = now.timestamp()
     if user.user_id in user_action_tracker:
         last_reset_time = user_action_tracker[user.user_id].get('points_timestamp', 0)
-        if now_timestamp - last_reset_time > 300:
+        if now_timestamp - last_reset_time > 86400:
             user_action_tracker[user.user_id]['points_timestamp'] = now_timestamp
             user.points = 50 
             return True

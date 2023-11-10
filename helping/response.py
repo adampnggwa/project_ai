@@ -17,3 +17,11 @@ def pesan_response(email: Optional[str], message: str):
         'email': email,
         'message': message
     }
+
+def premium_response(user):
+    response = {
+        "email": user.email,
+        "message": 'congratulations, now you have a premium subscription',
+        "premium_expiration": str(user.premium_expiration),
+    }
+    return response

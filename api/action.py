@@ -4,7 +4,7 @@ from helping.action import generate_variation, generate_image, edit_image
 from fastapi.responses import JSONResponse
 from datetime import datetime
 from helping.limit import can_use_action, reset_user_points
-from helping.auth import is_token_valid
+from helping.auth import is_token_valid, is_premium_expired
 from body.action import ImageRequest
 from PIL import Image
 import tempfile
@@ -29,12 +29,11 @@ async def generate(meta: ImageRequest, token: str= Header(...)):
             size = '1024x1024'
         else:
             raise HTTPException(status_code=400, detail="Entered the wrong value in the size parameter")
-        now_time = datetime.now(pytz.utc)
         prompt = meta.prompt
         response_data = generate_image(prompt, size)
         response_data["size"] = f"{meta.size} ({size})"
         combined_size = f"{meta.size} ({size})"
-        now_local = now_time.astimezone(pytz.timezone('Asia/Jakarta'))
+        now_local = datetime.now(pytz.timezone('Asia/Jakarta'))
         generated_image = await GeneratedImage.create(user=user, image_url=response_data["image_url"], prompt=prompt, size=combined_size)
         generated_image.created_at = now_local
         await generated_image.save()
@@ -42,7 +41,7 @@ async def generate(meta: ImageRequest, token: str= Header(...)):
         return JSONResponse(content=response_data, status_code=201)
     else:
         raise HTTPException(status_code=400, detail="Insufficient points. Wait 1 day to get points again.")
-
+    
 @router.post('/edit-image')
 async def edit(prompt: str, image: UploadFile, mask: UploadFile = None, token: str = Header(...)):
     size: str = "1024x1024"
@@ -51,7 +50,6 @@ async def edit(prompt: str, image: UploadFile, mask: UploadFile = None, token: s
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     user = await User.get(token=token) 
     if reset_user_points(user) or can_use_action(user, 'edit-image'): 
-        now_time = datetime.now(pytz.utc)
         image_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
         mask_temp = None
         try:
@@ -65,7 +63,7 @@ async def edit(prompt: str, image: UploadFile, mask: UploadFile = None, token: s
                     mask_pil = mask_pil.resize((1024, 1024))
                     mask_pil.save(mask_temp.name, format="PNG")
             response_data = edit_image(prompt, image_temp, mask_temp, size)
-            now_local = now_time.astimezone(pytz.timezone('Asia/Jakarta'))
+            now_local = datetime.now(pytz.timezone('Asia/Jakarta'))
             edited_images = await EditedImage.create(user=user, image_url=response_data["image_url"], prompt=prompt)
             edited_images.created_at = now_local
             await edited_images.save()
@@ -78,7 +76,7 @@ async def edit(prompt: str, image: UploadFile, mask: UploadFile = None, token: s
                 os.remove(mask_temp.name)
     else:
         raise HTTPException(status_code=400, detail="Insufficient points. Wait 1 day to get points again.")
-
+    
 @router.post('/generate-variation')
 async def variation(image: UploadFile, token: str = Header(...)):
     size: str = "1024x1024"
@@ -86,14 +84,13 @@ async def variation(image: UploadFile, token: str = Header(...)):
     if validasi is False:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     user = await User.get(token=token) 
-    if reset_user_points(user) or can_use_action(user, 'generate-variation'):  
-        now_time = datetime.now(pytz.utc)
+    if reset_user_points(user) or can_use_action(user, 'generate-variation'):
         image_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
         try:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as image_temp:
                 shutil.copyfileobj(image.file, image_temp)
             response_data = generate_variation(image_temp, size)
-            now_local = now_time.astimezone(pytz.timezone('Asia/Jakarta'))
+            now_local = datetime.now(pytz.timezone('Asia/Jakarta'))
             generated_variations = await GeneratedVariation.create(user=user, image_url=response_data["image_url"])
             generated_variations.created_at = now_local
             await generated_variations.save()
