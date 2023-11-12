@@ -8,7 +8,7 @@ def reset_user_points(user):
     now_timestamp = now.timestamp()
     if user.user_id in user_action_tracker:
         last_reset_time = user_action_tracker[user.user_id].get('points_timestamp', 0)
-        if now_timestamp - last_reset_time > 86400:
+        if now_timestamp - last_reset_time > 28800:
             user_action_tracker[user.user_id]['points_timestamp'] = now_timestamp
             user.points = 50 
             return True
@@ -19,7 +19,7 @@ def reset_user_points(user):
 
 def can_use_action(user, action_name, size=None):
     if reset_user_points(user):
-        return True
+        return True    
     if action_name == 'generate-image':
         size_points = {
             'small': 1,
@@ -28,7 +28,7 @@ def can_use_action(user, action_name, size=None):
         }
         if size in size_points and user.points >= size_points[size]:
             user.points -= size_points[size]
-            return True
+            return True    
     elif action_name in ('edit-image', 'generate-variation'):
         if user.points >= 5:
             user.points -= 5

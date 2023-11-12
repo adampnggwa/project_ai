@@ -58,3 +58,21 @@ async def is_token_valid(token: str) -> bool:
             return False
         return True
     return False
+
+async def set_premium_expiration(user):
+    jakarta_tz = pytz.timezone('Asia/Jakarta')
+    current_time = datetime.now(jakarta_tz)
+    premium_expiration = current_time + timedelta(minutes=2)
+    user.premium_expiration = premium_expiration
+    await user.save()
+
+async def cek_premium_expired(user):  
+    jakarta_tz = pytz.timezone('Asia/Jakarta')
+    current_time = datetime.now(jakarta_tz)
+    if user.premium_expiration <= current_time:
+        user.premium = False
+        user.premium_expiration = None
+        await user.save()
+        return False  
+    else:
+        return True

@@ -4,7 +4,7 @@ from helping.action import generate_variation, generate_image, edit_image
 from fastapi.responses import JSONResponse
 from datetime import datetime
 from helping.limit import can_use_action, reset_user_points
-from helping.auth import is_token_valid, is_premium_expired
+from helping.auth import is_token_valid, cek_premium_expired
 from body.action import ImageRequest
 from PIL import Image
 import tempfile
@@ -83,20 +83,27 @@ async def variation(image: UploadFile, token: str = Header(...)):
     validasi = await is_token_valid(token=token)
     if validasi is False:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
-    user = await User.get(token=token) 
-    if reset_user_points(user) or can_use_action(user, 'generate-variation'):
-        image_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-        try:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as image_temp:
-                shutil.copyfileobj(image.file, image_temp)
-            response_data = generate_variation(image_temp, size)
-            now_local = datetime.now(pytz.timezone('Asia/Jakarta'))
-            generated_variations = await GeneratedVariation.create(user=user, image_url=response_data["image_url"])
-            generated_variations.created_at = now_local
-            await generated_variations.save()
-            await user.save()
-            return JSONResponse(content=response_data, status_code=201)
-        finally:
-            os.remove(image_temp.name)
-    else:
-        raise HTTPException(status_code=400, detail="Insufficient points. Wait 1 day to get points again.")
+    user = await User.get(token=token)
+    if user.premium is True:
+        valid_prem = await cek_premium_expired(user)  
+        if valid_prem is False:
+           raise HTTPException(status_code=400, detail="Premium subscription has expired. You must subscribe again to use Generate Variation.")  
+        elif valid_prem is True:
+            if reset_user_points(user) or can_use_action(user, 'generate-variation'):    
+                image_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+                try:
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as image_temp:
+                        shutil.copyfileobj(image.file, image_temp)
+                    response_data = generate_variation(image_temp, size)
+                    now_local = datetime.now(pytz.timezone('Asia/Jakarta'))
+                    generated_variations = await GeneratedVariation.create(user=user, image_url=response_data["image_url"])
+                    generated_variations.created_at = now_local
+                    await generated_variations.save()
+                    await user.save()
+                    return JSONResponse(content=response_data, status_code=201)
+                finally:
+                    os.remove(image_temp.name)
+            else:
+                raise HTTPException(status_code=400, detail="Insufficient points. Please wait 8 hours to reset the points.")  
+    else:  
+        raise HTTPException(status_code=400, detail="You need premium subscription to use Generate-Variation") 
