@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Header
 from email_validator import validate_email, EmailNotValidError
-from helping.response import user_response, pesan_response
+from helping.response import user_response, pesan_response, response_user
 from fastapi.responses import JSONResponse
 from helping.auth import is_token_valid, hash_password
 from body.user import EditProfileRequest, DeleteAccountRequest
@@ -48,7 +48,7 @@ async def get_profile(email: str, token: str = Header(...)):
     user = await User.get_or_none(email=email)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    user_info = user_response(user)
+    user_info = response_user(user)
     return JSONResponse(user_info, status_code=200)
 
 @router.delete('/delete-account')

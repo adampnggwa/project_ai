@@ -19,36 +19,18 @@ def credentials_to_dict(credentials):
 
 async def create_token(user):
     token = secrets.token_hex(16)
-    jakarta_tz = pytz.timezone('Asia/Jakarta')
-    current_time = datetime.now(jakarta_tz)
-    token_expiration = current_time + timedelta(hours=8)   
+    current_time = datetime.now(pytz.utc)
+    token_expiration = current_time + timedelta(hours=8)
     user.token = token
     user.token_expiration = token_expiration
     await user.save()
-    
+
 async def check_token_expired(user):
-    jakarta_tz = pytz.timezone('Asia/Jakarta')
-    current_time = datetime.now(jakarta_tz)
+    current_time = datetime.now(pytz.utc)
     if user.token_expiration <= current_time:
         user.token = None
         await user.save()
         return True
-    return False
-
-async def set_verification_token_expiration(user):
-    jakarta_tz = pytz.timezone('Asia/Jakarta')
-    current_time = datetime.now(jakarta_tz)
-    token_expiration = current_time + timedelta(hours=1) 
-    user.verification_token_expiration = token_expiration
-    await user.save()
-
-async def is_verification_token_expired(user):
-    if user.verification_token_expiration is None:
-        return True  
-    jakarta_tz = pytz.timezone('Asia/Jakarta')
-    current_time = datetime.now(jakarta_tz)
-    if user.verification_token_expiration <= current_time:
-        return True  
     return False
 
 async def is_token_valid(token: str) -> bool:
@@ -59,16 +41,43 @@ async def is_token_valid(token: str) -> bool:
         return True
     return False
 
+async def set_verification_token_expiration(user):
+    current_time = datetime.now(pytz.utc)    
+    token_expiration = current_time + timedelta(minutes=5) 
+    user.verification_token_expiration = token_expiration
+    await user.save()
+
+async def is_verification_token_expired(user):
+    if user.verification_token_expiration is None:
+        return True  
+    current_time = datetime.now(pytz.utc)
+    if user.verification_token_expiration <= current_time:
+        return True  
+    return False
+
+async def refreshed_verification(user):
+    user.verification_token_refreshed = True
+    await user.save() 
+
+async def user_verification_token(user, meta):
+    if user.verification_token and user.verification_token == meta.verification_token:
+        user.verification_token = None
+        user.verification_token_expiration = None 
+        user.verified = True
+        await user.save()
+        return True
+    else:
+        return False
+
 async def set_premium_expiration(user):
-    jakarta_tz = pytz.timezone('Asia/Jakarta')
-    current_time = datetime.now(jakarta_tz)
-    premium_expiration = current_time + timedelta(minutes=2)
+    current_time = datetime.now(pytz.utc)
+    premium_expiration = current_time + timedelta(days=30)
     user.premium_expiration = premium_expiration
+    user.premium = True
     await user.save()
 
 async def cek_premium_expired(user):  
-    jakarta_tz = pytz.timezone('Asia/Jakarta')
-    current_time = datetime.now(jakarta_tz)
+    current_time = datetime.now(pytz.utc)
     if user.premium_expiration <= current_time:
         user.premium = False
         user.premium_expiration = None

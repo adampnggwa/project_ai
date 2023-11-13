@@ -17,7 +17,5 @@ async def set_premium(token: str = Header(...)):
     if user.premium:
         raise HTTPException(status_code=400, detail="You are already subscribed to premium.")
     await set_premium_expiration(user)
-    user.premium = True
-    await user.save()
     response = premium_response(user)
     return JSONResponse(response, status_code=200)

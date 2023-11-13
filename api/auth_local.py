@@ -1,10 +1,10 @@
 from fastapi import APIRouter, HTTPException
 from email_validator import validate_email, EmailNotValidError
 from helping.response import user_response, pesan_response
-from helping.auth import create_token, hash_password, is_verification_token_expired, set_verification_token_expiration
+from helping.auth import create_token, hash_password, is_verification_token_expired, set_verification_token_expiration, user_verification_token, refreshed_verification
 from fastapi.responses import JSONResponse
 from helping.confirm import send_confirm
-from body.auth import signupORsignin, VerifyRegistration
+from body.auth import signupORsignin, VerifyRegistration, RefreshVerificationToken
 from database.model import User
 import secrets
 
@@ -37,15 +37,29 @@ async def verify_registration(meta: VerifyRegistration):
         raise HTTPException(status_code=403, detail="Your email is not yet registered")
     if await is_verification_token_expired(user):
         raise HTTPException(status_code=401, detail="Verification token has expired")
-    if user.verification_token and user.verification_token == meta.verification_token:
-        user.verification_token = None
-        user.verification_token_expiration = None 
-        user.verified = True
-        await user.save()        
+    if await user_verification_token(user, meta):
         response = pesan_response(email=meta.email, message="Congratulations, you have been verified, then you can signin.")
         return JSONResponse(response, status_code=200)
     else:
         raise HTTPException(status_code=401, detail="Invalid verification token")
+
+@router.post('/refresh-verification-token')
+async def refresh_verification_token(meta: RefreshVerificationToken):
+    user = await User.get_or_none(email=meta.email)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not await is_verification_token_expired(user):
+        raise HTTPException(status_code=400, detail="Verification token is not expired")
+    if user.verification_token_refreshed:
+        raise HTTPException(status_code=400, detail="Verification token can only be refreshed once")
+    new_verification_token = secrets.token_hex(16)
+    user.verification_token = new_verification_token
+    await set_verification_token_expiration(user)
+    verification_token_expiration = user.verification_token_expiration
+    await refreshed_verification(user)
+    send_confirm(user.email, new_verification_token, verification_token_expiration)
+    response = pesan_response(email=meta.email, message="Verification token refreshed. Check your email for the new token.")
+    return JSONResponse(response, status_code=200)
 
 @router.post('/signin')
 async def signin(meta: signupORsignin):

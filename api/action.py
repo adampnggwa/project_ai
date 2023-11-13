@@ -40,7 +40,7 @@ async def generate(meta: ImageRequest, token: str= Header(...)):
         await user.save()
         return JSONResponse(content=response_data, status_code=201)
     else:
-        raise HTTPException(status_code=400, detail="Insufficient points. Wait 1 day to get points again.")
+        raise HTTPException(status_code=400, detail="Insufficient points. Please wait 8 hours to reset the points.")
     
 @router.post('/edit-image')
 async def edit(prompt: str, image: UploadFile, mask: UploadFile = None, token: str = Header(...)):
@@ -49,33 +49,40 @@ async def edit(prompt: str, image: UploadFile, mask: UploadFile = None, token: s
     if validasi is False:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     user = await User.get(token=token) 
-    if reset_user_points(user) or can_use_action(user, 'edit-image'): 
-        image_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-        mask_temp = None
-        try:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as image_temp:
-                shutil.copyfileobj(image.file, image_temp)
-            if mask:
-                mask_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-                shutil.copyfileobj(mask.file, mask_temp)
-                with Image.open(mask_temp.name) as mask_pil:
-                    mask_pil = mask_pil.convert("L")
-                    mask_pil = mask_pil.resize((1024, 1024))
-                    mask_pil.save(mask_temp.name, format="PNG")
-            response_data = edit_image(prompt, image_temp, mask_temp, size)
-            now_local = datetime.now(pytz.timezone('Asia/Jakarta'))
-            edited_images = await EditedImage.create(user=user, image_url=response_data["image_url"], prompt=prompt)
-            edited_images.created_at = now_local
-            await edited_images.save()
-            await user.save()
-            return JSONResponse(content=response_data, status_code=200)
-        finally:
-            os.remove(image_temp.name)
-            if mask_temp:
-                mask_temp.close()
-                os.remove(mask_temp.name)
-    else:
-        raise HTTPException(status_code=400, detail="Insufficient points. Wait 1 day to get points again.")
+    if user.premium is True:
+        valid_prem = await cek_premium_expired(user)  
+        if valid_prem is False:
+           raise HTTPException(status_code=400, detail="Premium subscription has expired. You must subscribe again to use Edit Image.")  
+        elif valid_prem is True:
+            if reset_user_points(user) or can_use_action(user, 'edit-image'): 
+                image_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+                mask_temp = None
+                try:
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as image_temp:
+                        shutil.copyfileobj(image.file, image_temp)
+                    if mask:
+                        mask_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+                        shutil.copyfileobj(mask.file, mask_temp)
+                        with Image.open(mask_temp.name) as mask_pil:
+                            mask_pil = mask_pil.convert("L")
+                            mask_pil = mask_pil.resize((1024, 1024))
+                            mask_pil.save(mask_temp.name, format="PNG")
+                    response_data = edit_image(prompt, image_temp, mask_temp, size)
+                    now_local = datetime.now(pytz.timezone('Asia/Jakarta'))
+                    edited_images = await EditedImage.create(user=user, image_url=response_data["image_url"], prompt=prompt)
+                    edited_images.created_at = now_local
+                    await edited_images.save()
+                    await user.save()
+                    return JSONResponse(content=response_data, status_code=200)
+                finally:
+                    os.remove(image_temp.name)
+                    if mask_temp:
+                        mask_temp.close()
+                        os.remove(mask_temp.name)
+            else:
+                raise HTTPException(status_code=400, detail="Insufficient points. Please wait 8 hours to reset the points.")
+    else:  
+        raise HTTPException(status_code=400, detail="You need premium subscription to use Edit Image")
     
 @router.post('/generate-variation')
 async def variation(image: UploadFile, token: str = Header(...)):
@@ -106,4 +113,4 @@ async def variation(image: UploadFile, token: str = Header(...)):
             else:
                 raise HTTPException(status_code=400, detail="Insufficient points. Please wait 8 hours to reset the points.")  
     else:  
-        raise HTTPException(status_code=400, detail="You need premium subscription to use Generate-Variation") 
+        raise HTTPException(status_code=400, detail="You need premium subscription to use Generate Variation") 
