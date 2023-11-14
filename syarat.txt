@@ -12,4 +12,3 @@ python-dotenv
 pytz
 pillow
 email-validator
-smtplib
