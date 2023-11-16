@@ -55,10 +55,6 @@ async def is_verification_token_expired(user):
         return True  
     return False
 
-async def refreshed_verification(user):
-    user.verification_token_refreshed = True
-    await user.save() 
-
 async def user_verification_token(user, meta):
     if user.verification_token and user.verification_token == meta.verification_token:
         user.verification_token = None

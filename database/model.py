@@ -11,7 +11,6 @@ class User(Model):
     verified = fields.BooleanField(default=False)
     verification_token = fields.CharField(max_length=100, null=True)
     verification_token_expiration = fields.DatetimeField(null=True)
-    verification_token_refreshed = fields.BooleanField(default=False)
     points = fields.IntField(default=50)
     premium = fields.BooleanField(default=False)
     premium_expiration = DatetimeField(null=True)
