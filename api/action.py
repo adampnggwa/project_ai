@@ -35,7 +35,6 @@ async def generate(meta: ImageRequest, token: str= Header(...)):
         combined_size = f"{meta.size} ({size})"
         now_time = datetime.now(pytz.utc)
         generated_image = await GeneratedImage.create(user=user, image_url=response_data["image_url"], prompt=prompt, size=combined_size, create_at=now_time)
-        generated_image.created_at = now_time
         await generated_image.save()
         await user.save()
         return JSONResponse(content=response_data, status_code=201)
@@ -70,7 +69,6 @@ async def edit(prompt: str, image: UploadFile, mask: UploadFile = None, token: s
                     response_data = edit_image(prompt, image_temp, mask_temp, size)
                     now_time = datetime.now(pytz.utc)
                     edited_images = await EditedImage.create(user=user, image_url=response_data["image_url"], prompt=prompt, create_at=now_time)
-                    edited_images.created_at = now_time
                     await edited_images.save()
                     await user.save()
                     return JSONResponse(content=response_data, status_code=200)
