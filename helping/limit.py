@@ -10,11 +10,17 @@ def reset_user_points(user):
         last_reset_time = user_action_tracker[user.user_id].get('points_timestamp', 0)
         if now_timestamp - last_reset_time > timedelta(days=1).total_seconds():
             user_action_tracker[user.user_id]['points_timestamp'] = now_timestamp
-            user.points = 50 
+            user.points = 50
+            if user.premium :
+                user.points = 120
+                return True
             return True
     else:
         user_action_tracker[user.user_id] = {'points_timestamp': now_timestamp}
         user.points = 50
+        if user.premium :
+            user.points = 120
+            return False
     return False
 
 def can_use_action(user, action_name, size=None):

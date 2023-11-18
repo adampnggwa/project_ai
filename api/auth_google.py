@@ -8,7 +8,7 @@ from configs import config
 import requests
 import os
 
-router = APIRouter(prefix='/google-auth', tags=['GOOGLE-AUTH'])
+router = APIRouter(prefix='/google-auth', tags=['google-auth'])
 
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
@@ -39,7 +39,7 @@ async def signinGoogle():
     )
     return RedirectResponse(authorization_url)
 
-@router.get('/auth2callbackSignup')
+@router.get('/auth2callbacksignup')
 async def callbackSignup(request: Request, state: str):
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
         'credentials_google.json',
@@ -69,7 +69,7 @@ async def callbackSignup(request: Request, state: str):
     else:
         raise HTTPException(status_code=400, detail="Invalid")
 
-@router.get('/auth2callbackSignin')
+@router.get('/auth2callbacksignin')
 async def callbackSignin(request: Request, state: str):
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
         'credentials_google.json',

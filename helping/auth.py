@@ -69,6 +69,7 @@ async def set_premium_expiration(user):
     current_time = datetime.now(pytz.utc)
     premium_expiration = current_time + timedelta(days=30)
     user.premium_expiration = premium_expiration
+    user.points = 120
     user.premium = True
     await user.save()
 
@@ -77,6 +78,7 @@ async def cek_premium_expired(user):
     if user.premium_expiration <= current_time:
         user.premium = False
         user.premium_expiration = None
+        user.points = 50
         await user.save()
         return False  
     else:
