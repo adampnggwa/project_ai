@@ -8,7 +8,7 @@ from configs import config
 import requests
 import os
 
-router = APIRouter(prefix='/google-auth', tags=['google-auth'])
+router = APIRouter(prefix='/google-auth', tags=['GOOGLE-AUTH'])
 
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
