@@ -39,7 +39,7 @@ async def create_token(user_id: int):
 async def check_token_expired(user_id: int):
     current_time = datetime.now(pytz.utc)
     data_access_token = await accesstoken.filter(user_id=user_id).first()
-    if data_access_token:
+    if data_access_token: # cek data token milik user id ini ada atau tidak
         if data_access_token.token_expiration <= current_time:
             # case token sudah basi
             data_access_token.token = None
