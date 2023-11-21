@@ -17,28 +17,40 @@ def credentials_to_dict(credentials):
         "scopes": credentials.scopes,
     }
 
-async def create_token(user_id):
+async def create_token(user_id: int):
     token = secrets.token_hex(16)
     current_time = datetime.now(pytz.utc)
     token_expiration = current_time + timedelta(hours=8)
     save = accesstoken(user_id=user_id, token=token, token_expiration=token_expiration)
-    await save()
+    access_token_data = await accesstoken.filter(user_id=user_id).first()
+    if access_token_data:
+        check = await check_token_expired(user_id=user_id)
+        if check is True:
+            await save.save()
+            return True
+        else:
+            access_token_data.token_expiration = token_expiration
+            access_token_data.save()
+            return True
+    else:
+        await save.save()
+        return True
 
-async def check_token_expired(user):
+async def check_token_expired(user_id: int):
     current_time = datetime.now(pytz.utc)
-    if user.token_expiration <= current_time:
-        user.token = None
-        await user.save()
-        return True
-    return False
-
-async def is_token_valid(token: str) -> bool:
-    user = await User.get_or_none(token=token)
-    if user:
-        if await check_token_expired(user):
+    data_access_token = await accesstoken.filter(user_id=user_id).first()
+    if data_access_token:
+        if data_access_token.token_expiration <= current_time:
+            # case token sudah basi
+            data_access_token.token = None
+            await data_access_token.save()
+            return True
+        else:
+            # case token belum basi
             return False
+    else:
+        # case token tidak ditemukan
         return True
-    return False
 
 async def set_verification_token_expiration(user):
     current_time = datetime.now(pytz.utc)    
