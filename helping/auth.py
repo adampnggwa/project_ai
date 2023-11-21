@@ -2,7 +2,7 @@ import secrets
 import pytz
 import hashlib
 from datetime import datetime, timedelta
-from database.model import User
+from database.model import User, accesstoken
 
 def hash_password(password: str, salt: str):
     return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 100000).hex()
@@ -17,13 +17,12 @@ def credentials_to_dict(credentials):
         "scopes": credentials.scopes,
     }
 
-async def create_token(user):
+async def create_token(user_id):
     token = secrets.token_hex(16)
     current_time = datetime.now(pytz.utc)
     token_expiration = current_time + timedelta(hours=8)
-    user.token = token
-    user.token_expiration = token_expiration
-    await user.save()
+    save = accesstoken(user_id=user_id, token=token, token_expiration=token_expiration)
+    await save()
 
 async def check_token_expired(user):
     current_time = datetime.now(pytz.utc)
