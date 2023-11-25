@@ -1,10 +1,10 @@
 from fastapi import APIRouter, HTTPException, UploadFile, Header
-from database.model import User, GeneratedImage, EditedImage, GeneratedVariation
+from database.model import GeneratedImage, EditedImage, GeneratedVariation, userdata
 from helping.action import generate_variation, generate_image, edit_image
 from fastapi.responses import JSONResponse
 from datetime import datetime
 from helping.limit import can_use_action, reset_user_points
-from helping.auth import is_token_valid, cek_premium_expired
+from helping.auth import cek_premium_expired, apakahAccessTokenValid
 from body.action import ImageRequest
 from PIL import Image
 import tempfile
@@ -15,11 +15,14 @@ import os
 router = APIRouter(prefix='/action-utama', tags=['ACTION'])
 
 @router.post('/generate-image')
-async def generate(meta: ImageRequest, token: str= Header(...)):
-    validasi = await is_token_valid(token=token)
-    if validasi is False:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    user = await User.get(token=token)
+async def generate(meta: ImageRequest, access_token: str= Header(...)):
+    validasi = await apakahAccessTokenValid(access_token=access_token)
+    if validasi['status'] is False:
+        raise HTTPException(status_code=401, detail=validasi['keterangan'])
+    else:
+        user_id = validasi["keterangan"]
+    
+    user = await userdata.filter(user_id=user_id).first()
     if reset_user_points(user) or can_use_action(user, 'generate-image', meta.size):
         if meta.size == 'small':
             size = '256x256'
@@ -42,12 +45,15 @@ async def generate(meta: ImageRequest, token: str= Header(...)):
         raise HTTPException(status_code=400, detail="Insufficient points. Please wait 1 days to reset the points.")
     
 @router.post('/edit-image')
-async def edit(prompt: str, image: UploadFile, mask: UploadFile = None, token: str = Header(...)):
+async def edit(prompt: str, image: UploadFile, mask: UploadFile = None, access_token: str = Header(...)):
     size: str = "1024x1024"
-    validasi = await is_token_valid(token=token)
-    if validasi is False:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    user = await User.get(token=token) 
+    validasi = await apakahAccessTokenValid(access_token=access_token)
+    if validasi['status'] is False:
+        raise HTTPException(status_code=401, detail=validasi['keterangan'])
+    else:
+        user_id = validasi["keterangan"]
+    
+    user = await userdata.filter(user_id=user_id).first()
     if user.premium is True:
         valid_prem = await cek_premium_expired(user)  
         if valid_prem is False:
@@ -83,12 +89,15 @@ async def edit(prompt: str, image: UploadFile, mask: UploadFile = None, token: s
         raise HTTPException(status_code=400, detail="You need premium subscription to use Edit Image")
     
 @router.post('/generate-variation')
-async def variation(image: UploadFile, token: str = Header(...)):
+async def variation(image: UploadFile, access_token: str = Header(...)):
     size: str = "1024x1024"
-    validasi = await is_token_valid(token=token)
-    if validasi is False:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    user = await User.get(token=token)
+    validasi = await apakahAccessTokenValid(access_token=access_token)
+    if validasi['status'] is False:
+        raise HTTPException(status_code=401, detail=validasi['keterangan'])
+    else:
+        user_id = validasi["keterangan"]
+    
+    user = await userdata.filter(user_id=user_id).first()
     if user.premium is True:
         valid_prem = await cek_premium_expired(user)  
         if valid_prem is False:

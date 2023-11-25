@@ -1,4 +1,6 @@
 from typing import Optional
+from database.model import accesstoken
+# iki jenge ora user response neng access_token response cok
 
 def user_response(user):
     response = {
@@ -8,21 +10,19 @@ def user_response(user):
     }
     return response
 
-def pesan_response(email: Optional[str], message: str):
-    if email is None:
-        email = 'anonymus'
+# iki anyar lagi tak gawe 
+async def access_token_response(user_id):
+    data = await accesstoken.filter(user_id=user_id).first()
+    return{
+        'token': str(data.token),
+        'exp': str(data.token_expiration)
+    }
+
+def pesan_response(message: str, email: Optional[str]='anonymus'):
     return{
         'email': email,
         'message': message
     }
-
-def premium_response(user):
-    response = {
-        "email": user.email,
-        "message": 'congratulations, now you have a premium subscription',
-        "premium_expiration": str(user.premium_expiration),
-    }
-    return response
 
 def response_user(user):
     response = {

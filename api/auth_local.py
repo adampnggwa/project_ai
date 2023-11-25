@@ -1,67 +1,80 @@
 from fastapi import APIRouter, HTTPException
-from email_validator import validate_email, EmailNotValidError
-from helping.response import user_response, pesan_response
-from helping.auth import create_token, hash_password, is_verification_token_expired, set_verification_token_expiration, user_verification_token
+import json
+from helping.response import pesan_response, access_token_response
+from helping.auth import enx_password, create_token_verivication, cek_dulu_gaksih_token_verifikationnya, create_access_token, cek_valid_email, cek_password
 from fastapi.responses import JSONResponse
 from helping.confirm import send_confirm
 from body.auth import signupORsignin, VerifyRegistration
-from database.model import User
-import secrets
+from database.model import userdata
 
 router = APIRouter(prefix='/auth-local', tags=['auth-local'])
-
-@router.post('/signup')
-async def signup(meta: signupORsignin):
-    user = await User.get_or_none(email=meta.email)
+    
+@router.post('/register')
+async def register(meta: signupORsignin):
+    user = await userdata.filter(email=meta.email).first()
+    value = create_token_verivication()
+    hashed_password = enx_password(meta.password)
+    response = pesan_response(email=meta.email, message='tilik email ya adik adik')
+    
+    email_ceker = cek_valid_email(email=meta.email)
+    if email_ceker is False:
+        raise HTTPException(detail='ngelebokke opo kowe ki', status_code=500)
+    
     if user:
-        if user.verified:
-            raise HTTPException(status_code=403, detail="This email is already registered")
-    try:
-        valid = validate_email(meta.email)
-        email = valid["email"]
-    except EmailNotValidError as e:
-        raise HTTPException(status_code=400, detail="Invalid email format")
-    verification_token = secrets.token_hex(16)
-    salt = secrets.token_hex(16)
-    hashed_password = hash_password(meta.password, salt)
+
+        if user.verified is True:
+            raise HTTPException(detail='raoleh daftar meneh ', status_code=403)
+        else:
+            send_confirm(email=meta.email, token=value['konten'], exp=value['exp'])
+            if user.google_auth is True:
+                user.email = meta.email
+                user.password = hashed_password
+                user.verification_token = value['konten']
+                user.verification_token_expiration = value['exp']
+            else:
+                user.email = meta.email
+                user.password = hashed_password
+                user.verification_token = value['konten']
+                user.verification_token_expiration = value['exp']
+            await user.save()
+            return JSONResponse(response, status_code=200)
+    else:
+        send_confirm(email=meta.email, token=value['konten'], exp=value['exp'])
+        await userdata.create(email=meta.email, password=hashed_password, verification_token=value['konten'], verification_token_expiration= value['exp'])
+        return JSONResponse(response, status_code=200)
+    
+@router.post('/centang-biru-dulu-gak-sih')
+async def verifed(meta: VerifyRegistration):
+    user = await userdata.filter(email=meta.email).first()
     if user:
-        if not user.verified:
-            user.verification_token = verification_token
-            user.verification_token_expiration = None  
-            await set_verification_token_expiration(user)
+        check_verifikasi = await cek_dulu_gaksih_token_verifikationnya(email=meta.email, token=meta.token_konfirmasi)
+        if check_verifikasi['status'] is False:
+            raise HTTPException(detail=check_verifikasi['keterangan'], status_code=500)
+        else:
+            user.verification_token = None
+            user.verification_token_expiration = None
+            user.verified = True
+            await user.save()
+            repsonse = pesan_response(email=meta.email, message='hore udah jadi')
+            return JSONResponse(repsonse, status_code=200)
     else:
-        user = await User.create(email=email, password=hashed_password + salt, verification_token=verification_token)
-        await set_verification_token_expiration(user)
-    verification_token_expiration = user.verification_token_expiration
-    send_confirm(email, verification_token, verification_token_expiration)
-    response = pesan_response(email=email, message='Email successfully registered. Please check your email for verification.')
-    return JSONResponse(response, status_code=201)
+        raise HTTPException(detail='user tidak ditemukann bjr', status_code=500)
 
-@router.post('/verify-registration')
-async def verify_registration(meta: VerifyRegistration):
-    user = await User.get_or_none(email=meta.email)
-    if user is None:
-        raise HTTPException(status_code=403, detail="Your email is not yet registered")
-    if await is_verification_token_expired(user):
-        raise HTTPException(status_code=401, detail="Verification token has expired")
-    if await user_verification_token(user, meta):
-        response = pesan_response(email=meta.email, message="Congratulations, you have been verified, then you can signin.")
-        return JSONResponse(response, status_code=200)
+@router.post('/login-coy')
+async def login(meta:signupORsignin):
+    user = await userdata.filter(email=meta.email).first()
+    email_ceker = cek_valid_email(email=meta.email)
+    if email_ceker is False:
+        raise HTTPException(detail='iki user e dasar ***', status_code=500)
+    if user:
+        if user.verified is False:
+            raise HTTPException(detail='anjay kamu gak centang biru', status_code=500)
+        else:
+            if cek_password(password_database=user.password, password_input=meta.password) is True:
+                await create_access_token(user=user)
+                response = await access_token_response(user_id=user.user_id)
+                return JSONResponse(response, status_code=200)
+            else:
+                raise HTTPException(detail='hayo kamu curi akun ya', status_code=500)
     else:
-        raise HTTPException(status_code=401, detail="Invalid verification token")
-
-@router.post('/signin')
-async def signin(meta: signupORsignin):
-    user = await User.get_or_none(email=meta.email)
-    if user is None:
-        raise HTTPException(status_code=403, detail="Your email is not yet registered")
-    else:
-        if not user.verified:
-            raise HTTPException(status_code=403, detail="User is not verified. Please complete the verification process.")        
-        salt = user.password[-32:]
-        hashed_input_password = hash_password(meta.password, salt)
-        if user.password[:-32] != hashed_input_password:
-            raise HTTPException(status_code=401, detail="Invalid email or password")
-        await create_token(user)
-        response = user_response(user)
-        return JSONResponse(response, status_code=200)
+        raise HTTPException(detail='malas isi sendiri detailnya', status_code=500)

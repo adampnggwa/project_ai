@@ -1,9 +1,9 @@
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse, JSONResponse
-from helping.auth import credentials_to_dict, create_token
-from helping.response import user_response
+from helping.auth import credentials_to_dict, create_access_token
+from helping.response import access_token_response
+from database.model import userdata
 import google_auth_oauthlib.flow
-from database.model import User
 from configs import config
 import requests
 import os
@@ -56,18 +56,24 @@ async def callbackSignup(request: Request, state: str):
     user_info_response = requests.get(userinfo_endpoint, headers={'Authorization': f'Bearer {access_token}'})
     user_info = user_info_response.json()
     email = user_info.get("email")
-    nama = user_info.get("name")
 
-    existing_user = await User.filter(email=email).first()
+    existing_user = await userdata.filter(email=email).first()
     if not existing_user:
-        save = User(nama=nama, email=email)
+        save = userdata(email=email, google_auth=True)
         await save.save()
-        user = await User.filter(email=email).first()
-        await create_token(user)
-        response = user_response(user)
+        user = await userdata.filter(email=email).first()
+        await create_access_token(user_id=user.user_id)
+        response = await access_token_response(user_id=user.user_id)
         return JSONResponse(response, status_code=201)
     else:
-        raise HTTPException(status_code=400, detail="Invalid")
+        if existing_user.google_auth is True:
+            raise HTTPException(status_code=400, detail="Invalid")
+        else:
+            existing_user.google_auth = True
+            existing_user.save()
+            await create_access_token(user=existing_user)
+            response = await access_token_response(user_id=existing_user.user)
+            return JSONResponse(response, status_code=201)
 
 @router.get('/auth2callbacksignin')
 async def callbackSignin(request: Request, state: str):
@@ -88,11 +94,14 @@ async def callbackSignin(request: Request, state: str):
     user_info = user_info_response.json()
     email = user_info.get("email")
 
-    existing_user = await User.filter(email=email).first()
-    if not existing_user:
+    user = await userdata.filter(email=email).first()
+    if not user:
         raise HTTPException(status_code=400, detail="Invalid")
     else:
-        user = await User.filter(email=email).first()
-        await create_token(user)
-        response = user_response(user)
-        return JSONResponse(response, status_code=200)
+        if user.google_auth is True:
+            user = await userdata.filter(email=email).first()
+            await create_access_token(user=user)
+            response = await access_token_response(user_id=user.user_id)
+            return JSONResponse(response, status_code=200)
+        else:
+            raise HTTPException(status_code=400, detail="Invalid")
