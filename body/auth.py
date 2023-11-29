@@ -7,4 +7,4 @@ class signupORsignin(BaseModel):
 
 class VerifyRegistration(BaseModel):
     email: str 
-    token_konfirmasi: str  
+    verification_token: str  

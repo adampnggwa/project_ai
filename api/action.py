@@ -20,8 +20,7 @@ async def generate(meta: ImageRequest, access_token: str= Header(...)):
     if validasi['status'] is False:
         raise HTTPException(status_code=401, detail=validasi['keterangan'])
     else:
-        user_id = validasi["keterangan"]
-    
+        user_id = validasi["keterangan"]    
     user = await userdata.filter(user_id=user_id).first()
     if reset_user_points(user) or can_use_action(user, 'generate-image', meta.size):
         if meta.size == 'small':
@@ -42,7 +41,7 @@ async def generate(meta: ImageRequest, access_token: str= Header(...)):
         await user.save()
         return JSONResponse(content=response_data, status_code=201)
     else:
-        raise HTTPException(status_code=400, detail="Insufficient points. Please wait 1 days to reset the points.")
+        raise HTTPException(status_code=400, detail="Insufficient points. Please wait until tomorrow, your points will be reset again")
     
 @router.post('/edit-image')
 async def edit(prompt: str, image: UploadFile, mask: UploadFile = None, access_token: str = Header(...)):
@@ -51,13 +50,12 @@ async def edit(prompt: str, image: UploadFile, mask: UploadFile = None, access_t
     if validasi['status'] is False:
         raise HTTPException(status_code=401, detail=validasi['keterangan'])
     else:
-        user_id = validasi["keterangan"]
-    
+        user_id = validasi["keterangan"]    
     user = await userdata.filter(user_id=user_id).first()
     if user.premium is True:
         valid_prem = await cek_premium_expired(user)  
         if valid_prem is False:
-           raise HTTPException(status_code=400, detail="Premium subscription has expired. You must subscribe again to use Edit Image.")  
+           raise HTTPException(status_code=400, detail="Premium subscription has expired. You must subscribe again to use Edit Image")  
         elif valid_prem is True:
             if reset_user_points(user) or can_use_action(user, 'edit-image'): 
                 image_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
@@ -84,7 +82,7 @@ async def edit(prompt: str, image: UploadFile, mask: UploadFile = None, access_t
                         mask_temp.close()
                         os.remove(mask_temp.name)
             else:
-                raise HTTPException(status_code=400, detail="Insufficient points. Please wait 1 days to reset the points.")
+                raise HTTPException(status_code=400, detail="Insufficient points. Please wait until tomorrow, your points will be reset again")
     else:  
         raise HTTPException(status_code=400, detail="You need premium subscription to use Edit Image")
     
@@ -96,12 +94,11 @@ async def variation(image: UploadFile, access_token: str = Header(...)):
         raise HTTPException(status_code=401, detail=validasi['keterangan'])
     else:
         user_id = validasi["keterangan"]
-    
     user = await userdata.filter(user_id=user_id).first()
     if user.premium is True:
         valid_prem = await cek_premium_expired(user)  
         if valid_prem is False:
-           raise HTTPException(status_code=400, detail="Premium subscription has expired. You must subscribe again to use Generate Variation.")  
+           raise HTTPException(status_code=400, detail="Premium subscription has expired. You must subscribe again to use Generate Variation")  
         elif valid_prem is True:
             if reset_user_points(user) or can_use_action(user, 'generate-variation'):    
                 image_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
@@ -117,6 +114,6 @@ async def variation(image: UploadFile, access_token: str = Header(...)):
                 finally:
                     os.remove(image_temp.name)
             else:
-                raise HTTPException(status_code=400, detail="Insufficient points. Please wait 1 days to reset the points.")  
+                raise HTTPException(status_code=400, detail="Insufficient points. Please wait until tomorrow, your points will be reset again")  
     else:  
         raise HTTPException(status_code=400, detail="You need premium subscription to use Generate Variation") 

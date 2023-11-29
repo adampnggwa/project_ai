@@ -3,12 +3,14 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from helping.auth import credentials_to_dict, create_access_token
 from helping.response import access_token_response
 from database.model import userdata
+from datetime import datetime
 import google_auth_oauthlib.flow
 from configs import config
 import requests
+import pytz
 import os
 
-router = APIRouter(prefix='/google-auth', tags=['GOOGLE-AUTH'])
+router = APIRouter(prefix='/google-auth', tags=['google-auth'])
 
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
@@ -62,7 +64,10 @@ async def callbackSignup(request: Request, state: str):
         save = userdata(email=email, google_auth=True)
         await save.save()
         user = await userdata.filter(email=email).first()
-        await create_access_token(user_id=user.user_id)
+        user.last_login = datetime.now(pytz.utc).date()
+        user.points = 50
+        await user.save()
+        await create_access_token(user=user)
         response = await access_token_response(user_id=user.user_id)
         return JSONResponse(response, status_code=201)
     else:
@@ -100,6 +105,9 @@ async def callbackSignin(request: Request, state: str):
     else:
         if user.google_auth is True:
             user = await userdata.filter(email=email).first()
+            user.last_login = datetime.now(pytz.utc).date()
+            user.points = 50
+            await user.save()
             await create_access_token(user=user)
             response = await access_token_response(user_id=user.user_id)
             return JSONResponse(response, status_code=200)

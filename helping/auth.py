@@ -1,11 +1,9 @@
 import secrets
 import pytz
-import hashlib
 import re
 import bcrypt
 from datetime import datetime, timedelta
 from database.model import userdata, accesstoken
-from typing import Optional
 
 def credentials_to_dict(credentials):
     return {
@@ -24,59 +22,6 @@ def cek_valid_email(email: str):
     else:
         return False
 
-async def apakahAccessTokenValid(access_token):
-    current_time = datetime.now(pytz.utc)
-    data_access_token = await accesstoken.filter(token=access_token).first()
-    if data_access_token: # cek data token milik user id ini ada atau tidak
-        if data_access_token.token_expiration <= current_time:
-            # case token sudah basi
-            await data_access_token.delete()
-            return{
-                'status': False,
-                'keterangan': 'token sudah exp login meneh oy'
-            }
-        else:
-            # case token belum basi
-            return{
-                'status': True,
-                'keterangan': data_access_token.user_id
-            }
-    else:
-        # case token tidak ditemukan
-        return {
-            'status': False,
-            'keterangan': 'token anda tidak ditemukan login kono cok'
-        }
-
-async def cek_dulu_gaksih_token_verifikationnya(token, email):
-    current_time = datetime.now(pytz.utc)
-    user = await userdata.filter(email=email).first()
-    if user.verification_token == token:
-        if user.verification_token_expiration >= current_time:
-            return{
-                'status': True,
-                'keterangan': user.user_id
-            }
-        else:
-            return{
-                'status': False,
-                'keterangan': 'anjay basi'
-            }
-    else:
-        return{
-            'status': False,
-            'keterangan': 'anjay salah'
-        }
-            
-def create_token_verivication():
-    current_time = datetime.now(pytz.utc)    
-    token_expiration = current_time + timedelta(minutes=5) 
-    verification_token = secrets.token_hex(16)
-    return{
-        'konten': verification_token,
-        'exp': token_expiration 
-    }
-
 def enx_password(password: str):
     salt = bcrypt.gensalt()
     bytes = password.encode('utf-8')
@@ -88,9 +33,9 @@ def cek_password(password_input, password_database):
     password_data = password_database
     result = bcrypt.checkpw(bytes, password_data)
     return result
-    
+
 async def create_access_token(user):
-    current_time = datetime.now(pytz.utc)    
+    current_time = datetime.now(pytz.utc) + timedelta(hours=8)  
     token = secrets.token_hex(16)
     data = await accesstoken.filter(user_id=user.user_id).first()
     if data:
@@ -104,7 +49,57 @@ async def create_access_token(user):
     else:
         data_baru = accesstoken(user_id = user.user_id, token=token, token_expiration= current_time)
         await data_baru.save()
-        
+
+async def apakahAccessTokenValid(access_token):
+    current_time = datetime.now(pytz.utc)
+    data_access_token = await accesstoken.filter(token=access_token).first()
+    if data_access_token:
+        if data_access_token.token_expiration <= current_time:
+            await data_access_token.delete()
+            return{
+                'status': False,
+                'keterangan': 'Your token has expired, please signin again'
+            }
+        else:
+            return{
+                'status': True,
+                'keterangan': data_access_token.user_id
+            }
+    else:
+        return {
+            'status': False,
+            'keterangan': 'Token not found, please signin again'
+        }
+
+def create_verification_token():
+    current_time = datetime.now(pytz.utc)    
+    verification_token_expiration = current_time + timedelta(minutes=5) 
+    verification_token = secrets.token_hex(16)
+    return{
+        'konten': verification_token,
+        'exp': verification_token_expiration 
+    }
+
+async def cek_verification_token(email):
+    current_time = datetime.now(pytz.utc)
+    user = await userdata.filter(email=email).first()
+    if user.verification_token:
+        if user.verification_token_expiration >= current_time:
+            return{
+                'status': True,
+                'keterangan': user.user_id
+            }
+        else:
+            return{
+                'status': False,
+                'keterangan': 'verification token has expired, please signup again'
+            }
+    else:
+        return{
+            'status': False,
+            'keterangan': 'invalid verification token'
+        }
+                        
 async def set_premium_expiration(user):
     current_time = datetime.now(pytz.utc)
     premium_expiration = current_time + timedelta(days=30)
