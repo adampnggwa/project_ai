@@ -1,7 +1,7 @@
 from datetime import datetime
 import pytz
 
-def reset_user_points(user):
+def reset_points(user):
     current_time = datetime.now(pytz.utc)
     if user.last_login.date() < current_time.date():
         user.points = 50
@@ -9,7 +9,7 @@ def reset_user_points(user):
             user.points = 120
         user.last_login = current_time
 
-def can_use_action(user, action_name, size=None):    
+def points_calculation(user, action_name, size=None):    
     if action_name == 'generate-image':
         size_points = {
             'small': 1,

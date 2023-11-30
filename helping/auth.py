@@ -68,7 +68,7 @@ async def apakahAccessTokenValid(access_token):
     else:
         return {
             'status': False,
-            'keterangan': 'Token not found, please signin again'
+            'keterangan': 'Invalid token'
         }
 
 def create_verification_token():

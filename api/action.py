@@ -3,7 +3,7 @@ from database.model import GeneratedImage, EditedImage, GeneratedVariation, user
 from helping.action import generate_variation, generate_image, edit_image
 from fastapi.responses import JSONResponse
 from datetime import datetime
-from helping.limit import can_use_action, reset_user_points
+from helping.limit import points_calculation, reset_points
 from helping.auth import cek_premium_expired, apakahAccessTokenValid
 from body.action import ImageRequest
 from PIL import Image
@@ -22,7 +22,7 @@ async def generate(meta: ImageRequest, access_token: str= Header(...)):
     else:
         user_id = validasi["keterangan"]    
     user = await userdata.filter(user_id=user_id).first()
-    if reset_user_points(user) or can_use_action(user, 'generate-image', meta.size):
+    if reset_points(user) or points_calculation(user, 'generate-image', meta.size):
         if meta.size == 'small':
             size = '256x256'
         elif meta.size == 'medium':
@@ -57,7 +57,7 @@ async def edit(prompt: str, image: UploadFile, mask: UploadFile = None, access_t
         if valid_prem is False:
            raise HTTPException(status_code=400, detail="Premium subscription has expired. You must subscribe again to use Edit Image")  
         elif valid_prem is True:
-            if reset_user_points(user) or can_use_action(user, 'edit-image'): 
+            if reset_points(user) or points_calculation(user, 'edit-image'): 
                 image_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
                 mask_temp = None
                 try:
@@ -100,7 +100,7 @@ async def variation(image: UploadFile, access_token: str = Header(...)):
         if valid_prem is False:
            raise HTTPException(status_code=400, detail="Premium subscription has expired. You must subscribe again to use Generate Variation")  
         elif valid_prem is True:
-            if reset_user_points(user) or can_use_action(user, 'generate-variation'):    
+            if reset_points(user) or points_calculation(user, 'generate-variation'):    
                 image_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
                 try:
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as image_temp:

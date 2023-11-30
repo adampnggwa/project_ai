@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from helping.response import pesan_response, access_token_response
 from helping.auth import enx_password, create_verification_token, cek_verification_token, create_access_token, cek_valid_email, cek_password
 from fastapi.responses import JSONResponse
+from helping.limit import reset_points
 from helping.confirm import send_confirm
 from body.auth import signupORsignin, VerifyRegistration
 from database.model import userdata
@@ -24,16 +25,10 @@ async def signup(meta: signupORsignin):
             raise HTTPException(detail='This email is already registered', status_code=403)
         else:
             send_confirm(email=meta.email, verification_token=value['konten'], verification_token_expiration=value['exp'])
-            if user.google_auth is True:
-                user.email = meta.email
-                user.password = hashed_password
-                user.verification_token = value['konten']
-                user.verification_token_expiration = value['exp']
-            else:
-                user.email = meta.email
-                user.password = hashed_password
-                user.verification_token = value['konten']
-                user.verification_token_expiration = value['exp']
+            user.email = meta.email
+            user.password = hashed_password
+            user.verification_token = value['konten']
+            user.verification_token_expiration = value['exp']
             await user.save()
             return JSONResponse(response, status_code=200)
     else:
