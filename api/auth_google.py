@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse, JSONResponse
-from helping.auth import credentials_to_dict, create_access_token
+from helping.auth import credentials_to_dict, create_access_token, default_points
 from helping.response import access_token_response
+from helping.limit import reset_points
 from database.model import userdata
 from datetime import datetime
 import google_auth_oauthlib.flow
@@ -64,9 +65,7 @@ async def callbackSignup(request: Request, state: str):
         save = userdata(email=email, google_auth=True)
         await save.save()
         user = await userdata.filter(email=email).first()
-        user.last_login = datetime.now(pytz.utc).date()
-        user.points = 50
-        await user.save()
+        await default_points(user=user)
         await create_access_token(user=user)
         response = await access_token_response(user_id=user.user_id)
         return JSONResponse(response, status_code=201)
@@ -105,9 +104,7 @@ async def callbackSignin(request: Request, state: str):
     else:
         if user.google_auth is True:
             user = await userdata.filter(email=email).first()
-            user.last_login = datetime.now(pytz.utc).date()
-            user.points = 50
-            await user.save()
+            await reset_points(user=user)
             await create_access_token(user=user)
             response = await access_token_response(user_id=user.user_id)
             return JSONResponse(response, status_code=200)

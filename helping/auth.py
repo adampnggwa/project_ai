@@ -99,7 +99,7 @@ async def cek_verification_token(email):
             'status': False,
             'keterangan': 'invalid verification token'
         }
-                        
+                            
 async def set_premium_expiration(user):
     current_time = datetime.now(pytz.utc)
     premium_expiration = current_time + timedelta(days=30)
@@ -118,3 +118,8 @@ async def cek_premium_expired(user):
         return False  
     else:
         return True
+    
+async def default_points(user):
+    if user.points == 0:
+        user.points = 50
+        await user.save() 

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from helping.response import pesan_response, access_token_response
-from helping.auth import enx_password, create_verification_token, cek_verification_token, create_access_token, cek_valid_email, cek_password
+from helping.auth import enx_password, create_verification_token, cek_verification_token, create_access_token, cek_valid_email, cek_password, default_points
 from fastapi.responses import JSONResponse
 from helping.limit import reset_points
 from helping.confirm import send_confirm
@@ -47,8 +47,8 @@ async def verification(meta: VerifyRegistration):
             user.verification_token = None
             user.verification_token_expiration = None
             user.verified = True
-            user.points = 50
             await user.save()
+            await default_points(user=user)
             repsonse = pesan_response(email=meta.email, message='Congratulations, you have been verified, then you can signin')
             return JSONResponse(repsonse, status_code=200)
     else:
@@ -65,8 +65,7 @@ async def signin(meta:signupORsignin):
             raise HTTPException(detail='User is not verified. Please complete the verification process', status_code=500)
         else:
             if cek_password(password_database=user.password, password_input=meta.password) is True:
-                user.last_login = datetime.now(pytz.utc).date()
-                await user.save()
+                await reset_points(user=user)
                 await create_access_token(user=user)
                 response = await access_token_response(user_id=user.user_id)
                 return JSONResponse(response, status_code=200)

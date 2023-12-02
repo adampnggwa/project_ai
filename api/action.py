@@ -3,7 +3,7 @@ from database.model import GeneratedImage, EditedImage, GeneratedVariation, user
 from helping.action import generate_variation, generate_image, edit_image
 from fastapi.responses import JSONResponse
 from datetime import datetime
-from helping.limit import points_calculation, reset_points
+from helping.limit import points_calculation
 from helping.auth import cek_premium_expired, apakahAccessTokenValid
 from body.action import ImageRequest
 from PIL import Image
@@ -22,7 +22,7 @@ async def generate(meta: ImageRequest, access_token: str= Header(...)):
     else:
         user_id = validasi["keterangan"]    
     user = await userdata.filter(user_id=user_id).first()
-    if reset_points(user) or points_calculation(user, 'generate-image', meta.size):
+    if await points_calculation(user, 'generate-image', meta.size):
         if meta.size == 'small':
             size = '256x256'
         elif meta.size == 'medium':
@@ -38,7 +38,6 @@ async def generate(meta: ImageRequest, access_token: str= Header(...)):
         now_time = datetime.now(pytz.utc)
         generated_image = await GeneratedImage.create(user=user, image_url=response_data["image_url"], prompt=prompt, size=combined_size, create_at=now_time)
         await generated_image.save()
-        await user.save()
         return JSONResponse(content=response_data, status_code=201)
     else:
         raise HTTPException(status_code=400, detail="Insufficient points. Please wait until tomorrow, your points will be reset again")
@@ -57,7 +56,7 @@ async def edit(prompt: str, image: UploadFile, mask: UploadFile = None, access_t
         if valid_prem is False:
            raise HTTPException(status_code=400, detail="Premium subscription has expired. You must subscribe again to use Edit Image")  
         elif valid_prem is True:
-            if reset_points(user) or points_calculation(user, 'edit-image'): 
+            if await points_calculation(user, 'edit-image'): 
                 image_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
                 mask_temp = None
                 try:
@@ -74,7 +73,6 @@ async def edit(prompt: str, image: UploadFile, mask: UploadFile = None, access_t
                     now_time = datetime.now(pytz.utc)
                     edited_images = await EditedImage.create(user=user, image_url=response_data["image_url"], prompt=prompt, create_at=now_time)
                     await edited_images.save()
-                    await user.save()
                     return JSONResponse(content=response_data, status_code=200)
                 finally:
                     os.remove(image_temp.name)
@@ -100,7 +98,7 @@ async def variation(image: UploadFile, access_token: str = Header(...)):
         if valid_prem is False:
            raise HTTPException(status_code=400, detail="Premium subscription has expired. You must subscribe again to use Generate Variation")  
         elif valid_prem is True:
-            if reset_points(user) or points_calculation(user, 'generate-variation'):    
+            if await points_calculation(user, 'generate-variation'):    
                 image_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
                 try:
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as image_temp:
@@ -109,7 +107,6 @@ async def variation(image: UploadFile, access_token: str = Header(...)):
                     now_time = datetime.now(pytz.utc)
                     generated_variations = await GeneratedVariation.create(user=user, image_url=response_data["image_url"], create_at=now_time)
                     await generated_variations.save()
-                    await user.save()
                     return JSONResponse(content=response_data, status_code=201)
                 finally:
                     os.remove(image_temp.name)
