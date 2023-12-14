@@ -28,9 +28,10 @@ async def generate(meta: ImageRequest, access_token: str= Header(...)):
         elif meta.size == 'medium':
             size = '512x512'
         elif meta.size == 'large':
-            size = '1024x1024'
-        else:
-            raise HTTPException(status_code=400, detail="Entered the wrong value in the size parameter")
+            if user.premium is True:
+                size = '1024x1024'
+            else:
+                raise HTTPException(status_code=400, detail="You need premium subscription to use Large size")
         prompt = meta.prompt
         response_data = generate_image(prompt, size)
         response_data["size"] = f"{meta.size} ({size})"
