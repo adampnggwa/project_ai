@@ -21,6 +21,36 @@ class userdata(Model):
     def __str__(self):
         return self.user_id
 
+class buyerdata(Model):
+    user_id = fields.IntField()
+    first_name = fields.CharField(max_length=255, null=True)
+    last_name = fields.CharField(max_length=255, null=True)
+    address_line = fields.CharField(max_length=255, null=True)
+    city = fields.CharField(max_length=255, null=True)
+    region = fields.CharField(max_length=255, null=True)
+    postcode = fields.CharField(max_length=20, null=True)
+    country = fields.CharField(max_length=100, null=True)
+
+    class Meta:
+        table = "buyer_data"
+        
+    def __str__(self):
+        return self.user_id
+    
+class PaymentTransaction(Model):
+    transaction_id = fields.IntField(pk=True)
+    user_id = fields.IntField()
+    amount = fields.DecimalField(max_digits=10, decimal_places=2)
+    payment_status = fields.CharField(max_length=20, default=False)
+    payment_method = fields.CharField(max_length=50)
+    timestamp = fields.DatetimeField(auto_now_add=True)
+
+    class Meta:
+        table = "payment_transaction"
+
+    def __str__(self):
+        return self.transaction_id
+    
 class accesstoken(Model):
     user_id = fields.IntField()
     token = fields.CharField(max_length=500, null=True)
