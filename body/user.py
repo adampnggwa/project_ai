@@ -9,16 +9,3 @@ class EditProfileRequest(BaseModel):
 class DeleteAccountRequest(BaseModel):
     email: str
     password: str
-
-class BuyerDataRequest(BaseModel):
-    first_name: str
-    last_name: str
-    address_line: str
-    city: str
-    region: str
-    postcode: str
-    country: str
-
-class PaymentRequest(BaseModel):
-    payment_amount: float
-    payment_method: str

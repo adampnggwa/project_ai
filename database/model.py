@@ -36,21 +36,7 @@ class buyerdata(Model):
         
     def __str__(self):
         return self.user_id
-    
-class PaymentTransaction(Model):
-    transaction_id = fields.IntField(pk=True)
-    user_id = fields.IntField()
-    amount = fields.DecimalField(max_digits=10, decimal_places=2)
-    payment_status = fields.CharField(max_length=20, default=False)
-    payment_method = fields.CharField(max_length=50)
-    timestamp = fields.DatetimeField(auto_now_add=True)
 
-    class Meta:
-        table = "payment_transaction"
-
-    def __str__(self):
-        return self.transaction_id
-    
 class accesstoken(Model):
     user_id = fields.IntField()
     token = fields.CharField(max_length=500, null=True)
